@@ -19,7 +19,12 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     chat_model: str = "claude-opus-5-5"
     chat_effort: str = "medium"
+    chat_max_tokens: int = 16000
+    chat_fallbacks: bool = True  # server-side refusal fallback (fallbacks="default")
     light_model: str = "claude-haiku-5-5"
+
+    prompts_dir: Path = REPO_ROOT / "prompts"
+    profile_path: Path = REPO_ROOT / "config" / "profile.md"
 
 
 @lru_cache

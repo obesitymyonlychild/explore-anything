@@ -133,3 +133,36 @@ class ConceptDetail(BaseModel):
     cards: list[MessageOut]  # assistant messages whose card is about this concept
     links: list[LinkedConcept]
     takeaways: list[TakeawayOut]
+
+
+# --- Hook cards & turns -----------------------------------------------------
+
+TurnAction = Literal["ask", "dive", "branch", "switch", "spark"]
+
+
+class Branch(BaseModel):
+    kind: Literal["deeper", "related", "switch"]
+    label: str
+    concept: str
+
+
+class Card(BaseModel):
+    """One assistant turn. Field order matches llm/card_schema.py (= streaming order)."""
+
+    concept: str = Field(min_length=1)
+    kind: Literal["intro", "deeper", "answer"]
+    depth: Depth
+    one_liner: str
+    example: str
+    highlights: list[str]
+    bridge: str
+    body_md: str
+    branches: list[Branch]
+
+
+class TurnRequest(BaseModel):
+    action: TurnAction
+    text: str | None = None
+    concept: str | None = None  # branch / spark: the concept to move to
+    depth: Depth | None = None  # explicit depth for this and later turns
+    takeaway_id: uuid.UUID | None = None  # ask: a question-type takeaway to send

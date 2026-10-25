@@ -89,8 +89,11 @@ class Message(Base):
     seq: Mapped[int] = mapped_column(Integer, nullable=False)
     role: Mapped[str] = mapped_column(Text, nullable=False)
     action: Mapped[str | None] = mapped_column(Text)  # user turns: ask|dive|branch|switch|spark
-    content: Mapped[str] = mapped_column(Text, nullable=False)  # user text, or card JSON
+    content: Mapped[str] = mapped_column(Text, nullable=False)  # what the UI shows: user text, or card JSON
     card: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Exact content blocks sent to / returned by the API, replayed verbatim as history.
+    # Kept separate from `content` because replayed turns (incl. thinking blocks) must never change.
+    api_content: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
     concept_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("concept.id", ondelete="SET NULL")
     )

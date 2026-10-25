@@ -161,6 +161,11 @@ messages:
 ```
 - Per-turn context (action, depth, your links and takeaways) goes in the **user turn**, so the cached system prefix never changes and history stays append-only.
 - Only the current concept's links and takeaways are included, capped at ~20 items (newest first).
+- **History is append-only and replayed verbatim** from `message.api_content`: user turns exactly as sent
+  (header included), assistant turns exactly as returned (thinking blocks included). Newer API accounts reject
+  edited history that carries thinking blocks, and any change would also break prompt caching.
+- If a stream fails, the user turn stays without a reply; the next turn (the retry) replaces it, so turns
+  always alternate user/assistant.
 
 ### 5.3 Streaming a structured card
 The API streams the JSON as text. The backend parses it as partial JSON (`jiter`, `partial_mode="trailing-strings"`) at most every ~50 ms and sends the partial card as an SSE `card` event. At the end it validates the card with Pydantic, registers the concept, stores the message and sends `done`.
@@ -193,7 +198,8 @@ Random topic area from `prompts/topic_areas.yaml` (~40 areas, excluding the last
 
 ### 6.2 SSE protocol
 ```
-event: meta   data: {"message_id": "...", "depth": "explain"}
+event: meta   data: {"user_message_id": "...", "depth": "explain"}
+event: status data: {"state": "thinking"}         (Claude is reasoning; deeper levels can take 10+ s)
 event: card   data: {<partial card>}             (repeated)
 event: done   data: {<final card>, "concept_id": "...", "usage": {...}}
 event: error  data: {"code": "refusal|max_tokens|api_error", "message": "..."}
@@ -244,8 +250,9 @@ create table message (
   seq int not null,
   role text not null check (role in ('user','assistant')),
   action text,                         -- user: ask|dive|branch|switch|spark
-  content text not null,               -- user text, or card JSON for assistant
+  content text not null,               -- what the UI shows: user text, or card JSON
   card jsonb,
+  api_content jsonb,                   -- exact content blocks sent/received, replayed verbatim (see §5.2)
   concept_id uuid,                     -- assistant: the card's concept
   model text, usage jsonb,
   created_at timestamptz not null default now(),

@@ -4,13 +4,13 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routes import concepts, health, links, takeaways, threads
+from app.routes import concepts, health, links, takeaways, threads, turns
 
 STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(title="Explore Anything")
 
-for module in (health, threads, concepts, links, takeaways):
+for module in (health, threads, turns, concepts, links, takeaways):
     app.include_router(module.router, prefix="/api")
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
