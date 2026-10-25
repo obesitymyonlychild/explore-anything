@@ -203,6 +203,7 @@ async def run_turn(turn: PreparedTurn, llm: CardLLM) -> AsyncIterator[str]:
         session.add(msg)
         thread.current_concept_id = concept.id
         thread.root_concept_id = thread.root_concept_id or concept.id
+        thread.title = thread.title or concept.name  # provisional; generated titles arrive in M5
         thread.last_active_at = func.now()
         await session.commit()
 

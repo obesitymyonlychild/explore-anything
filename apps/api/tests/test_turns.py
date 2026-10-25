@@ -74,6 +74,7 @@ async def test_ask_streams_a_card_and_stores_everything(client, session, llm):
     concept = await session.get(Concept, thread.current_concept_id)
     assert concept.name == "Air conditioning" and concept.explored
     assert thread.root_concept_id == concept.id
+    assert thread.title == "Air conditioning"
     assert str(concept.id) == done["concept_id"]
 
     events_logged = (await session.scalars(select(InterestEvent))).all()

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -9,6 +9,16 @@ from app.routes import concepts, health, links, takeaways, threads, turns
 STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(title="Explore Anything")
+
+
+@app.middleware("http")
+async def revalidate_page_assets(request: Request, call_next):
+    # The page has no build step / hashed filenames, so make browsers revalidate (ETag) on every load.
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
 
 for module in (health, threads, turns, concepts, links, takeaways):
     app.include_router(module.router, prefix="/api")

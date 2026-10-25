@@ -7,12 +7,39 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <main>
-    <h1>Explore Anything</h1>
-    <p>M0 placeholder. The chat page arrives in M3.</p>
-    <ul id="health"><li>checking…</li></ul>
-    <p><a href="/docs">API docs</a></p>
-  </main>
+  <div class="layout">
+    <aside class="sidebar">
+      <button id="new-thread" class="primary">+ New</button>
+      <h2>Threads</h2>
+      <ul id="threads" class="thread-list"></ul>
+    </aside>
+
+    <main class="main">
+      <header class="thread-header">
+        <h1 id="thread-title">New exploration</h1>
+        <label class="depth">depth
+          <select id="depth">
+            <option value="glance">glance</option>
+            <option value="explain" selected>explain</option>
+            <option value="mechanism">mechanism</option>
+            <option value="expert">expert</option>
+          </select>
+        </label>
+      </header>
+
+      <section id="messages" class="messages" aria-live="polite">
+        <div id="empty" class="empty">
+          <p>Type a concept or a question to start exploring.</p>
+          <p class="muted">e.g. "how does air conditioning work?", "tides", "why do bridges sway?"</p>
+        </div>
+      </section>
+
+      <form id="composer" class="composer">
+        <textarea id="input" rows="2" placeholder="Ask anything…" autocomplete="off"></textarea>
+        <button type="submit" id="send" class="primary">Send</button>
+      </form>
+    </main>
+  </div>
   <script src="/static/app.js"></script>
 </body>
 </html>

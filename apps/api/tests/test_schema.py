@@ -21,3 +21,6 @@ async def test_index_page_served(client):
     res = await client.get("/")
     assert res.status_code == 200
     assert "Explore Anything" in res.text
+    assert res.headers["cache-control"] == "no-cache"
+    assert (await client.get("/static/app.js")).headers["cache-control"] == "no-cache"
+    assert "cache-control" not in (await client.get("/api/health")).headers
