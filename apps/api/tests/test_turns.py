@@ -7,19 +7,32 @@ import pytest
 from sqlalchemy import select
 
 from app.llm.client import get_llm
+from app.llm.light import get_light_llm
 from app.main import app
 from app.models import Concept, InterestEvent, Message, Thread
 from app.services import orchestrator
-from tests.fake_llm import THINKING, FakeLLM, Script, card
+from tests.fake_llm import THINKING, FakeLightLLM, FakeLLM, Script, card
 
 
 @pytest.fixture
-def llm(monkeypatch):
+def light():
+    fake = FakeLightLLM()
+    app.dependency_overrides[get_light_llm] = lambda: fake
+    yield fake
+    app.dependency_overrides.pop(get_light_llm, None)
+
+
+@pytest.fixture
+def llm(monkeypatch, light):
     fake = FakeLLM()
     app.dependency_overrides[get_llm] = lambda: fake
     monkeypatch.setattr(orchestrator, "EMIT_INTERVAL", 0)  # emit every partial
     yield fake
     app.dependency_overrides.pop(get_llm, None)
+
+
+def done(events) -> dict:
+    return next(d for e, d in events if e == "done")
 
 
 def parse_sse(body: str) -> list[tuple[str, dict]]:
@@ -53,29 +66,29 @@ async def test_ask_streams_a_card_and_stores_everything(client, session, llm):
 
     events = await turn(client, tid, action="ask", text="how does air conditioning work?")
     names = [e for e, _ in events]
-    assert names[:2] == ["meta", "status"] and names[-1] == "done"
+    assert names[:2] == ["meta", "status"] and names[-2:] == ["done", "title"]
     assert events[1][1] == {"state": "thinking"}
     partials = [d for e, d in events if e == "card"]
     assert len(partials) > 3
     assert partials[0].keys() <= partials[-1].keys()  # fields fill in over time
 
-    done = events[-1][1]
-    assert done["card"]["concept"] == "Air conditioning"
-    assert done["usage"]["output_tokens"] == 50
+    finished = done(events)
+    assert finished["card"]["concept"] == "Air conditioning"
+    assert finished["usage"]["output_tokens"] == 50
 
     user, assistant = await messages(session, tid)
     assert (user.role, user.action, user.content) == ("user", "ask", "how does air conditioning work?")
     assert '<turn action="ask" depth="explain"/>' in user.api_content[0]["text"]
-    assert assistant.card == done["card"]
+    assert assistant.card == finished["card"]
     assert assistant.api_content[0] == THINKING  # stored verbatim for replay
-    assert str(assistant.id) == done["message_id"]
+    assert str(assistant.id) == finished["message_id"]
 
     thread = await session.get(Thread, uuid.UUID(tid))
     concept = await session.get(Concept, thread.current_concept_id)
     assert concept.name == "Air conditioning" and concept.explored
     assert thread.root_concept_id == concept.id
-    assert thread.title == "Air conditioning"
-    assert str(concept.id) == done["concept_id"]
+    assert thread.title == "Generated title"
+    assert str(concept.id) == finished["concept_id"]
 
     events_logged = (await session.scalars(select(InterestEvent))).all()
     assert [e.action for e in events_logged] == ["ask"]
@@ -88,7 +101,7 @@ async def test_dive_raises_depth_and_replays_history_verbatim(client, session, l
 
     events = await turn(client, tid, action="dive")
     assert events[0][1]["depth"] == "mechanism"
-    assert events[-1][1]["card"]["depth"] == "mechanism"  # server's depth wins over the model's
+    assert done(events)["card"]["depth"] == "mechanism"  # server's depth wins over the model's
 
     sent = llm.calls[1]["messages"]
     assert [m["role"] for m in sent] == ["user", "assistant", "user"]
@@ -115,8 +128,7 @@ async def test_dive_caps_at_expert_and_explicit_depth(client, llm):
 async def test_users_notes_reach_the_prompt(client, llm):
     llm.scripts += [Script.of(card()), Script.of(card(kind="deeper"))]
     tid = await new_thread(client)
-    done = (await turn(client, tid, action="ask", text="air conditioning"))[-1][1]
-    ac_id = done["concept_id"]
+    ac_id = done(await turn(client, tid, action="ask", text="air conditioning"))["concept_id"]
 
     hp = (await client.post("/api/concepts", json={"name": "Heat pump"})).json()
     await client.post("/api/links", json={"a_concept_id": ac_id, "b_concept_id": hp["id"], "note": "same cycle"})
@@ -137,7 +149,7 @@ async def test_branch_moves_focus_to_the_new_concept(client, session, llm):
     await turn(client, tid, action="ask", text="air conditioning")
 
     events = await turn(client, tid, action="branch", concept="Heat pump")
-    assert events[-1][1]["card"]["concept"] == "Heat pump"
+    assert done(events)["card"]["concept"] == "Heat pump"
     assert 'focus="Heat pump"' in llm.calls[1]["messages"][-1]["content"][0]["text"]
     stored = await messages(session, tid)
     assert stored[2].content == "Related: Heat pump"
@@ -150,7 +162,7 @@ async def test_branch_moves_focus_to_the_new_concept(client, session, llm):
 async def test_ask_with_a_saved_question(client, session, llm):
     llm.scripts += [Script.of(card()), Script.of(card(kind="answer", body_md="Yes: ..."))]
     tid = await new_thread(client)
-    ac_id = (await turn(client, tid, action="ask", text="air conditioning"))[-1][1]["concept_id"]
+    ac_id = done(await turn(client, tid, action="ask", text="air conditioning"))["concept_id"]
     q = (
         await client.post(
             "/api/takeaways", json={"kind": "question", "body": "Does this exist?", "concept_ids": [ac_id]}
@@ -185,6 +197,7 @@ async def test_refusal_keeps_no_reply_and_the_retry_replaces_the_turn(client, se
         (Script('{"concept": "X"}'), "invalid_card"),
         (Script.of(card(), stop_reason="max_tokens"), "max_tokens"),
         (Script("", raise_exc=anthropic.APIConnectionError(request=httpx2.Request("POST", "https://x"))), "connection"),
+        (Script("", raise_exc=RuntimeError("boom")), "internal"),
     ],
 )
 async def test_failures_become_error_events(client, session, llm, script, code):
@@ -217,3 +230,47 @@ async def test_invalid_turns_are_rejected(client, llm, body, status):
 async def test_turn_on_unknown_thread_is_404(client, llm):
     res = await client.post(f"/api/threads/{uuid.uuid4()}/turns", json={"action": "ask", "text": "hi"})
     assert res.status_code == 404
+
+
+async def test_title_only_after_the_first_card(client, session, llm, light):
+    llm.scripts += [Script.of(card()), Script.of(card(kind="deeper"))]
+    tid = await new_thread(client)
+    first = await turn(client, tid, action="ask", text="how does AC work?")
+    assert first[-1] == ("title", {"title": "Generated title"})
+    assert "how does AC work?" in light.calls[0]["prompt"]
+
+    second = await turn(client, tid, action="dive")
+    assert [e for e, _ in second][-1] == "done"
+    assert len(light.calls) == 1
+
+
+async def test_title_failure_keeps_the_provisional_title(client, session, llm, light):
+    light.replies.append(RuntimeError("haiku down"))
+    llm.scripts.append(Script.of(card()))
+    tid = await new_thread(client)
+    events = await turn(client, tid, action="ask", text="air conditioning")
+    assert [e for e, _ in events][-1] == "done"
+    assert (await session.get(Thread, uuid.UUID(tid))).title == "Air conditioning"
+
+
+async def test_spark_turn_logs_topic_area(client, session, llm):
+    llm.scripts.append(Script.of(card("Thermal expansion joint")))
+    tid = await new_thread(client)
+    await turn(client, tid, action="spark", concept="Thermal expansion joint", topic_area="Structural engineering")
+
+    user_msg = (await messages(session, tid))[0]
+    assert user_msg.content == "Surprise me: Thermal expansion joint"
+    prompt = user_msg.api_content[0]["text"]
+    assert '<turn action="spark" depth="explain" focus="Thermal expansion joint"/>' in prompt
+    assert "<message>\nSurprise me.\n</message>" in prompt
+    event = (await session.scalars(select(InterestEvent))).one()
+    assert (event.action, event.meta["topic_area"]) == ("spark_shown", "Structural engineering")
+
+
+async def test_auth_error_has_a_clear_message(client, llm):
+    response = httpx2.Response(401, request=httpx2.Request("POST", "https://x"))
+    llm.scripts.append(Script("", raise_exc=anthropic.AuthenticationError("bad key", response=response, body=None)))
+    tid = await new_thread(client)
+    events = await turn(client, tid, action="ask", text="hi")
+    assert events[-1][1]["code"] == "auth"
+    assert "ANTHROPIC_API_KEY" in events[-1][1]["message"]

@@ -6,6 +6,7 @@ alternates user/assistant and earlier turns are never edited.
 """
 
 import json
+import logging
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -21,13 +22,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import SessionLocal
 from app.deps import get_owned
 from app.llm.client import CardLLM, Final, TextDelta, ThinkingStarted
+from app.llm.light import LightLLM
 from app.llm.partial import PartialJSON
 from app.llm.prompt import Notes, system_blocks, user_turn
 from app.models import DEPTHS, Concept, Message, Takeaway, Thread
 from app.schemas import Card, TurnRequest
-from app.services import interest
+from app.services import interest, titles
 from app.services.concepts import get_or_create, slugify
 from app.services.notes import load_notes
+
+log = logging.getLogger(__name__)
 
 EMIT_INTERVAL = 0.05  # seconds between partial-card events
 MAX_HIGHLIGHTS = 3
@@ -35,6 +39,7 @@ MAX_HIGHLIGHTS = 3
 DEFAULT_TEXT = {
     "dive": "Go deeper.",
     "switch": "Show me something completely different.",
+    "spark": "Surprise me.",
 }
 
 
@@ -46,6 +51,8 @@ class PreparedTurn:
     depth: str
     system: list[dict[str, Any]]
     history: list[dict[str, Any]]
+    first_turn: bool = False  # the thread's first card: generate a title after it
+    first_message: str = ""
 
 
 def next_depth(depth: str) -> str:
@@ -102,12 +109,13 @@ async def prepare_turn(session: AsyncSession, user_id: uuid.UUID, thread: Thread
     else:
         last_seq = last.seq if last else 0
 
+    label = {"branch": f"Related: {target}", "spark": f"Surprise me: {target}"}.get(req.action, display)
     user_msg = Message(
         thread_id=thread.id,
         seq=last_seq + 1,
         role="user",
         action=req.action,
-        content=text or (f"Related: {target}" if req.action == "branch" else display),
+        content=text or label,
         api_content=[{"type": "text", "text": composed}],
     )
     session.add(user_msg)
@@ -117,7 +125,11 @@ async def prepare_turn(session: AsyncSession, user_id: uuid.UUID, thread: Thread
         "spark_shown" if req.action == "spark" else req.action,
         thread_id=thread.id,
         concept_id=focus.id if focus else None,
-        meta={"depth": depth, **({"concept": target} if target else {})},
+        meta={
+            "depth": depth,
+            **({"concept": target} if target else {}),
+            **({"topic_area": req.topic_area} if req.action == "spark" and req.topic_area else {}),
+        },
     )
     thread.depth = depth
     thread.last_active_at = func.now()
@@ -125,7 +137,16 @@ async def prepare_turn(session: AsyncSession, user_id: uuid.UUID, thread: Thread
 
     messages = await session.scalars(select(Message).where(Message.thread_id == thread.id).order_by(Message.seq))
     history = [{"role": m.role, "content": m.api_content or [{"type": "text", "text": m.content}]} for m in messages]
-    return PreparedTurn(thread.id, user_id, user_msg.id, depth, system_blocks(), history)
+    return PreparedTurn(
+        thread.id,
+        user_id,
+        user_msg.id,
+        depth,
+        system_blocks(),
+        history,
+        first_turn=thread.root_concept_id is None,
+        first_message=user_msg.content,
+    )
 
 
 def sse(event: str, data: dict[str, Any]) -> str:
@@ -136,7 +157,17 @@ def error(code: str, message: str) -> str:
     return sse("error", {"code": code, "message": message})
 
 
-async def run_turn(turn: PreparedTurn, llm: CardLLM) -> AsyncIterator[str]:
+async def run_turn(turn: PreparedTurn, llm: CardLLM, light_llm: LightLLM | None = None) -> AsyncIterator[str]:
+    try:
+        async for chunk in _run_turn(turn, llm, light_llm):
+            yield chunk
+    except Exception:
+        # Anything unexpected still ends the stream with an error event the page can show.
+        log.exception("turn failed")
+        yield error("internal", "Something went wrong on the server. Try again.")
+
+
+async def _run_turn(turn: PreparedTurn, llm: CardLLM, light_llm: LightLLM | None) -> AsyncIterator[str]:
     yield sse("meta", {"user_message_id": str(turn.user_message_id), "depth": turn.depth})
 
     parser = PartialJSON()
@@ -156,8 +187,14 @@ async def run_turn(turn: PreparedTurn, llm: CardLLM) -> AsyncIterator[str]:
                 yield sse("status", {"state": "thinking"})
             else:
                 final = event
+    except anthropic.AuthenticationError:
+        yield error("auth", "Anthropic API key missing or invalid. Check ANTHROPIC_API_KEY in .env, then restart.")
+        return
     except anthropic.RateLimitError:
         yield error("rate_limited", "Rate limited by the API. Try again in a moment.")
+        return
+    except anthropic.OverloadedError:
+        yield error("overloaded", "Claude is overloaded right now. Try again in a moment.")
         return
     except anthropic.APIStatusError as e:
         yield error("api_error", f"API error {e.status_code}: {e.message}")
@@ -211,3 +248,12 @@ async def run_turn(turn: PreparedTurn, llm: CardLLM) -> AsyncIterator[str]:
         "done",
         {"card": card_data, "message_id": str(msg.id), "concept_id": str(concept.id), "usage": final.usage},
     )
+
+    if turn.first_turn and light_llm is not None:
+        title = await titles.generate_title(light_llm, turn.first_message, card)
+        if title:
+            async with SessionLocal() as session:
+                thread = await session.get(Thread, turn.thread_id)
+                thread.title = title
+                await session.commit()
+            yield sse("title", {"title": title})

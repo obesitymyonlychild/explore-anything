@@ -43,6 +43,21 @@ class Script:
 
 
 @dataclass
+class FakeLightLLM:
+    """Replies to light-model calls: a queue of dicts (or exceptions), else a default title."""
+
+    replies: list[Any] = field(default_factory=list)
+    calls: list[dict[str, Any]] = field(default_factory=list)
+
+    async def json(self, system, prompt, schema):
+        self.calls.append({"system": system, "prompt": prompt, "schema": schema})
+        reply = self.replies.pop(0) if self.replies else {"title": "Generated title"}
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+
+@dataclass
 class FakeLLM:
     scripts: list[Script] = field(default_factory=list)
     calls: list[dict[str, Any]] = field(default_factory=list)

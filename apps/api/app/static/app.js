@@ -12,6 +12,9 @@ const els = {
   input: $("#input"),
   send: $("#send"),
   newThread: $("#new-thread"),
+  surprise: $("#surprise"),
+  stop: $("#stop"),
+  banner: $("#banner"),
   concepts: $("#concepts"),
   panel: $("#panel"),
   conceptOptions: $("#concept-options"),
@@ -21,6 +24,7 @@ const state = {
   threadId: null,
   streaming: false,
   lastTurn: null, // last turn request body, for Retry
+  abort: null, // AbortController of the running turn
   panelConceptId: null, // concept shown in the right panel
   threadTitles: {}, // thread id -> title, for "cards about this concept"
 };
@@ -41,11 +45,12 @@ async function api(path, opts = {}) {
 }
 
 // POST a turn and call onEvent(name, data) for each server-sent event.
-async function streamTurn(threadId, body, onEvent) {
+async function streamTurn(threadId, body, onEvent, signal) {
   const res = await fetch(`/api/threads/${threadId}/turns`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
+    signal,
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
@@ -220,7 +225,9 @@ function scrollToBottom() {
 
 function setStreaming(on) {
   state.streaming = on;
-  els.send.disabled = on;
+  els.send.hidden = on;
+  els.stop.hidden = !on;
+  els.surprise.disabled = on;
   els.depth.disabled = on;
   document.querySelectorAll("button.branch, button.ask").forEach((b) => (b.disabled = on));
 }
@@ -274,6 +281,7 @@ const DEFAULT_LABEL = {
   dive: () => "Go deeper.",
   branch: (b) => `Related: ${b.concept}`,
   switch: () => "Show me something completely different.",
+  spark: (b) => `Surprise me: ${b.concept}`,
 };
 
 async function sendTurn(body) {
@@ -306,34 +314,78 @@ async function sendTurn(body) {
     slot = node;
   };
 
-  let failed = false;
+  const abort = new AbortController();
+  state.abort = abort;
+  let finished = false; // a card or an error arrived
   try {
     await streamTurn(state.threadId, body, (name, data) => {
       if (name === "meta") els.depth.value = data.depth;
       else if (name === "status") replace(el("div", { class: "status" }, "Thinking"));
       else if (name === "card") replace(renderCard(data));
       else if (name === "done") {
+        finished = true;
         replace(renderCard(data.card, { final: true, messageId: data.message_id, conceptId: data.concept_id }));
+        setStreaming(false); // a title may still follow; the card is usable now
+        if (state.abort === abort) state.abort = null; // Stop no longer applies to this turn
+        if (els.title.textContent === "New exploration") els.title.textContent = data.card.concept;
         showConcept(data.concept_id);
         loadConcepts();
-      }
-      else if (name === "error") {
-        failed = true;
+        loadThreads();
+      } else if (name === "title") {
+        els.title.textContent = data.title;
+        loadThreads();
+      } else if (name === "error") {
+        finished = true;
         replace(errorBox(data));
       }
-      scrollToBottom();
-    });
+      if (name !== "title") scrollToBottom();
+    }, abort.signal);
+    if (!finished) replace(errorBox({ message: "The connection closed before the card finished." }));
   } catch (e) {
-    failed = true;
-    replace(errorBox({ message: `Connection lost: ${e.message}` }));
+    if (!finished) {
+      const stopped = e.name === "AbortError";
+      replace(errorBox({ message: stopped ? "Stopped." : `Connection lost: ${e.message}` }));
+    }
   }
+  // The stream stays open for the title after `done`; by then a newer turn may be running.
+  if (state.abort === abort) {
+    state.abort = null;
+    setStreaming(false);
+  }
+}
 
-  setStreaming(false);
-  if (!failed) {
-    const thread = await api(`/threads/${state.threadId}`);
-    els.title.textContent = thread.title || "Untitled";
+async function surprise() {
+  if (state.streaming) return;
+  newThread();
+  const slot = el("div", { class: "status" }, "Picking something surprising");
+  els.messages.replaceChildren(slot);
+  setStreaming(true);
+  let pick;
+  try {
+    pick = await api("/spark", { method: "POST" });
+  } catch (e) {
+    slot.replaceWith(el("div", { class: "error" }, e.message, el("button", { type: "button", onclick: surprise }, "Retry")));
+    setStreaming(false);
+    return;
   }
-  loadThreads();
+  slot.remove();
+  setStreaming(false);
+  sendTurn({ action: "spark", concept: pick.concept, topic_area: pick.topic_area, depth: els.depth.value });
+}
+
+async function checkHealth() {
+  try {
+    const h = await api("/health");
+    const problems = [
+      !h.db && "The database is unreachable (is Docker running? try `make dev`).",
+      !h.anthropic_api_key && "ANTHROPIC_API_KEY is not set in .env, so cards can't be generated. Add it and restart.",
+    ].filter(Boolean);
+    els.banner.textContent = problems.join(" ");
+    els.banner.hidden = problems.length === 0;
+  } catch {
+    els.banner.textContent = "The API server isn't responding.";
+    els.banner.hidden = false;
+  }
 }
 
 function errorBox(err) {
@@ -533,7 +585,10 @@ els.depth.addEventListener("change", async () => {
 });
 
 els.newThread.addEventListener("click", newThread);
+els.surprise.addEventListener("click", surprise);
+els.stop.addEventListener("click", () => state.abort?.abort());
 window.addEventListener("hashchange", route);
 
+checkHealth();
 loadConcepts();
 route();

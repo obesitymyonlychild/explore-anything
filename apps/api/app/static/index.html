@@ -10,6 +10,7 @@
   <div class="layout">
     <aside class="sidebar">
       <button id="new-thread" class="primary">+ New</button>
+      <button id="surprise">🎲 Surprise me</button>
       <h2>Threads</h2>
       <ul id="threads" class="thread-list"></ul>
       <h2>Concepts</h2>
@@ -29,6 +30,8 @@
         </label>
       </header>
 
+      <div id="banner" class="error banner" hidden></div>
+
       <section id="messages" class="messages" aria-live="polite">
         <div id="empty" class="empty">
           <p>Type a concept or a question to start exploring.</p>
@@ -39,6 +42,7 @@
       <form id="composer" class="composer">
         <textarea id="input" rows="2" placeholder="Ask anything…" autocomplete="off"></textarea>
         <button type="submit" id="send" class="primary">Send</button>
+        <button type="button" id="stop" hidden>Stop</button>
       </form>
     </main>
 

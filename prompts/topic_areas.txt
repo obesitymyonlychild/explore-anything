@@ -1,0 +1,45 @@
+# Topic areas for "Surprise me". One per line; lines starting with # are ignored.
+Thermodynamics and heat
+Fluid dynamics and aerodynamics
+Materials science
+Structural engineering
+Electrical power and grids
+Electronics and semiconductors
+Telecommunications and networking
+Optics and light
+Acoustics and sound
+Astronomy and space flight
+Geology and plate tectonics
+Oceans and weather
+Climate and atmosphere
+Chemistry of everyday materials
+Food science and cooking
+Agriculture and soil
+Microbiology
+Immunology
+Neuroscience
+Human physiology
+Pharmacology and drug design
+Genetics and evolution
+Ecology and animal behaviour
+Botany and plants
+Manufacturing and factories
+Shipping and logistics
+Transportation and vehicles
+Architecture and buildings
+Water supply and sanitation
+Money, banking and payments
+Markets and pricing
+Insurance and risk
+Law and institutions
+Urban planning
+History of technology
+Cartography and navigation
+Timekeeping and calendars
+Typography and printing
+Music theory and instruments
+Sports science
+Cryptography and security
+Linguistics and writing systems
+Textiles and clothing
+Energy storage and batteries

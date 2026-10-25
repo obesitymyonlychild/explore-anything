@@ -6,9 +6,11 @@ import pytest
 
 from app.settings import Settings
 
-# Point the app at the test database before app.db creates its engine.
+# Point the app at the test database before app.db creates its engine, and make sure no test can
+# ever reach the real Anthropic API with the key from .env (env vars override .env).
 TEST_DB_URL = Settings().test_database_url
 os.environ["DATABASE_URL"] = TEST_DB_URL
+os.environ["ANTHROPIC_API_KEY"] = "test-key-not-real"
 
 import asyncpg  # noqa: E402
 from alembic import command  # noqa: E402

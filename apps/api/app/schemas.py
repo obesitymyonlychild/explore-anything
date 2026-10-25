@@ -166,3 +166,10 @@ class TurnRequest(BaseModel):
     concept: str | None = None  # branch / spark: the concept to move to
     depth: Depth | None = None  # explicit depth for this and later turns
     takeaway_id: uuid.UUID | None = None  # ask: a question-type takeaway to send
+    topic_area: str | None = None  # spark: the area it was picked from (logged, so areas rotate)
+
+
+class SparkOut(BaseModel):
+    concept: str
+    teaser: str
+    topic_area: str
