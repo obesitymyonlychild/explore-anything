@@ -9,6 +9,7 @@
   --user-bg: #eef2ff;
   --error-bg: #fef2f2;
   --error-fg: #991b1b;
+  --idea: #b45309;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,6 +24,7 @@
     --user-bg: #1e293b;
     --error-bg: #3b1515;
     --error-fg: #fecaca;
+    --idea: #fbbf24;
   }
 }
 
@@ -158,10 +160,55 @@ button.primary { background: var(--accent); color: var(--accent-fg); border-colo
   align-items: center;
 }
 
+.card-concept a { color: inherit; text-decoration: none; }
+.card-concept a:hover { text-decoration: underline; }
+.card-actions { margin-top: 8px; }
+.link-button { border: none; background: none; padding: 0; color: var(--muted); font-size: 13px; }
+.link-button:hover:not(:disabled) { color: var(--accent); }
+
+/* --- concept panel --- */
+.panel {
+  width: 300px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  padding: 12px 14px;
+  overflow-y: auto;
+}
+.panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 18px 0 6px; }
+.panel .concept-name { font-size: 18px; font-weight: 700; margin: 0; }
+.panel a { color: var(--accent); text-decoration: none; }
+.panel a:hover { text-decoration: underline; }
+.panel ul { list-style: none; padding: 0; margin: 0; }
+.panel li { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.panel li:last-child { border-bottom: none; }
+.panel .note { color: var(--muted); font-size: 13px; }
+.panel .row { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.kind { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.kind-question { color: var(--accent); }
+.kind-idea { color: var(--idea); }
+
+form.stack { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+form.stack input, form.stack textarea, form.stack select {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+form.stack .actions { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+.form-error { color: var(--error-fg); font-size: 13px; }
+.card form.stack { border-top: 1px solid var(--border); padding-top: 10px; }
+
+/* --- narrower screens: panel moves under the chat --- */
+@media (max-width: 1100px) {
+  .layout { flex-wrap: wrap; height: auto; min-height: 100vh; }
+  .main { height: 100vh; flex-basis: calc(100% - 220px); }
+  .panel { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+}
+
 /* --- phone --- */
 @media (max-width: 700px) {
-  .layout { flex-direction: column; height: auto; min-height: 100vh; }
+  .layout { flex-direction: column; flex-wrap: nowrap; }
   .sidebar { width: auto; border-right: none; border-bottom: 1px solid var(--border); max-height: 30vh; }
-  .main { height: 70vh; }
+  .main { height: 75vh; flex-basis: auto; }
   .messages { padding: 12px 16px; }
 }

@@ -12,12 +12,17 @@ const els = {
   input: $("#input"),
   send: $("#send"),
   newThread: $("#new-thread"),
+  concepts: $("#concepts"),
+  panel: $("#panel"),
+  conceptOptions: $("#concept-options"),
 };
 
 const state = {
   threadId: null,
   streaming: false,
   lastTurn: null, // last turn request body, for Retry
+  panelConceptId: null, // concept shown in the right panel
+  threadTitles: {}, // thread id -> title, for "cards about this concept"
 };
 
 // --- API -------------------------------------------------------------------
@@ -74,6 +79,7 @@ async function streamTurn(threadId, body, onEvent) {
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue; // e.g. disabled: false
     if (k === "class") node.className = v;
     else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
     else node.setAttribute(k, v);
@@ -83,6 +89,11 @@ function el(tag, attrs = {}, ...children) {
     node.append(child instanceof Node ? child : document.createTextNode(child));
   }
   return node;
+}
+
+// Like node.append, but skips null/false children (for `cond && el(...)`).
+function append(node, ...children) {
+  node.append(...children.flat().filter((c) => c != null && c !== false));
 }
 
 function escapeHtml(s) {
@@ -155,15 +166,18 @@ const BRANCH_TURN = {
 };
 
 // Renders a (possibly partial) card. Fields that haven't streamed in yet are skipped.
-function renderCard(card, { final = false } = {}) {
+// Final cards carry their message and concept ids, which enable the concept link and "+ takeaway".
+function renderCard(card, { final = false, messageId = null, conceptId = null } = {}) {
   const tag = [card.kind, card.depth].filter(Boolean).join(" · ");
   const highlights = (card.highlights || []).filter(Boolean);
   const branches = final ? card.branches || [] : [];
-  return el(
-    "article",
-    { class: "card" },
+  const article = el("article", { class: "card" });
+  append(article,
     el("div", { class: "card-head" },
-      el("span", { class: "card-concept" }, card.concept || ""),
+      el("span", { class: "card-concept" },
+        conceptId
+          ? el("a", { href: "#", onclick: (e) => { e.preventDefault(); showConcept(conceptId); } }, card.concept)
+          : card.concept || ""),
       el("span", { class: "card-tag" }, tag)),
     card.one_liner && el("p", { class: "one-liner" }, card.one_liner),
     card.example && el("p", {}, el("span", { class: "label" }, "Example: "), card.example),
@@ -179,12 +193,25 @@ function renderCard(card, { final = false } = {}) {
             "data-kind": b.kind,
             onclick: () => sendTurn(BRANCH_TURN[b.kind](b)),
           }, b.kind === "related" ? `→ ${b.label}` : b.label))),
+    final && conceptId &&
+      el("div", { class: "card-actions" },
+        el("button", {
+          type: "button",
+          class: "link-button",
+          onclick: (e) => {
+            e.target.parentElement.remove();
+            article.append(takeawayForm({ conceptId, messageId, onDone: () => showConcept(conceptId) }));
+          },
+        }, "+ takeaway")),
   );
+  return article;
 }
 
 function renderMessage(msg) {
   if (msg.role === "user") return el("div", { class: "user-msg" }, msg.content);
-  return msg.card ? renderCard(msg.card, { final: true }) : el("div", { class: "user-msg" }, msg.content);
+  return msg.card
+    ? renderCard(msg.card, { final: true, messageId: msg.id, conceptId: msg.concept_id })
+    : el("div", { class: "user-msg" }, msg.content);
 }
 
 function scrollToBottom() {
@@ -195,13 +222,14 @@ function setStreaming(on) {
   state.streaming = on;
   els.send.disabled = on;
   els.depth.disabled = on;
-  document.querySelectorAll("button.branch").forEach((b) => (b.disabled = on));
+  document.querySelectorAll("button.branch, button.ask").forEach((b) => (b.disabled = on));
 }
 
 // --- threads ---------------------------------------------------------------
 
 async function loadThreads() {
   const threads = await api("/threads");
+  state.threadTitles = Object.fromEntries(threads.map((t) => [t.id, t.title || "Untitled"]));
   els.threads.replaceChildren(
     ...threads.map((t) =>
       el("li", {},
@@ -217,7 +245,9 @@ async function openThread(id) {
   els.messages.replaceChildren(...thread.messages.map(renderMessage));
   scrollToBottom();
   setStreaming(false);
-  loadThreads();
+  await loadThreads();
+  if (thread.current_concept_id) showConcept(thread.current_concept_id);
+  else clearPanel();
 }
 
 function newThread() {
@@ -227,6 +257,7 @@ function newThread() {
   els.depth.value = "explain";
   els.messages.replaceChildren(els.empty);
   loadThreads();
+  clearPanel();
   els.input.focus();
 }
 
@@ -281,7 +312,11 @@ async function sendTurn(body) {
       if (name === "meta") els.depth.value = data.depth;
       else if (name === "status") replace(el("div", { class: "status" }, "Thinking"));
       else if (name === "card") replace(renderCard(data));
-      else if (name === "done") replace(renderCard(data.card, { final: true }));
+      else if (name === "done") {
+        replace(renderCard(data.card, { final: true, messageId: data.message_id, conceptId: data.concept_id }));
+        showConcept(data.concept_id);
+        loadConcepts();
+      }
       else if (name === "error") {
         failed = true;
         replace(errorBox(data));
@@ -320,6 +355,160 @@ function showError(err) {
   scrollToBottom();
 }
 
+// --- concepts & the right panel --------------------------------------------
+
+async function loadConcepts() {
+  const concepts = await api("/concepts?limit=500");
+  els.concepts.replaceChildren(
+    ...concepts.map((c) =>
+      el("li", {},
+        el("a", {
+          href: "#",
+          "data-id": c.id,
+          class: c.id === state.panelConceptId ? "active" : "",
+          title: c.explored ? "" : "not explored yet",
+          onclick: (e) => { e.preventDefault(); showConcept(c.id); },
+        }, c.explored ? c.name : `${c.name} ·`))),
+  );
+}
+
+function clearPanel() {
+  state.panelConceptId = null;
+  els.panel.replaceChildren(el("p", { class: "muted" }, "Your links and takeaways for the current concept show up here."));
+}
+
+async function showConcept(id) {
+  state.panelConceptId = id;
+  let detail;
+  try {
+    detail = await api(`/concepts/${id}`);
+  } catch (e) {
+    els.panel.replaceChildren(el("p", { class: "form-error" }, e.message));
+    return;
+  }
+  if (state.panelConceptId !== id) return; // a newer request won
+  const { concept, cards, links, takeaways } = detail;
+  const refresh = () => { showConcept(id); loadConcepts(); };
+
+  const threadsSeen = [...new Map(cards.map((m) => [m.thread_id, m])).values()];
+
+  els.panel.replaceChildren();
+  append(els.panel,
+    el("p", { class: "kind" }, "Concept"),
+    el("p", { class: "concept-name" }, concept.name),
+    !concept.explored && el("p", { class: "muted" }, "Not explored yet."),
+
+    el("h2", {}, `Links (${links.length})`),
+    links.length > 0 &&
+      el("ul", {}, links.map((l) =>
+        el("li", {},
+          el("div", { class: "row" },
+            el("a", { href: "#", onclick: (e) => { e.preventDefault(); showConcept(l.concept.id); } }, l.concept.name),
+            el("button", {
+              type: "button",
+              class: "link-button",
+              title: "Remove link",
+              onclick: async () => { await api(`/links/${l.link_id}`, { method: "DELETE" }); refresh(); },
+            }, "×")),
+          l.note && el("div", { class: "note" }, l.note)))),
+    linkForm(concept, refresh),
+
+    el("h2", {}, `My takeaways (${takeaways.length})`),
+    takeaways.length > 0 &&
+      el("ul", {}, takeaways.map((t) =>
+        el("li", {},
+          el("div", { class: "row" },
+            el("span", { class: `kind kind-${t.kind}` }, t.kind),
+            el("button", {
+              type: "button",
+              class: "link-button",
+              title: "Delete",
+              onclick: async () => { await api(`/takeaways/${t.id}`, { method: "DELETE" }); refresh(); },
+            }, "×")),
+          el("div", {}, t.body),
+          t.concepts.length > 1 &&
+            el("div", { class: "note" }, "also: " + t.concepts.filter((c) => c.id !== id).map((c) => c.name).join(", ")),
+          t.kind === "question" &&
+            el("button", {
+              type: "button",
+              class: "ask",
+              disabled: state.streaming,
+              onclick: () => sendTurn({ action: "ask", text: t.body, takeaway_id: t.id }),
+            }, "Ask")))),
+    takeawayForm({ conceptId: id, onDone: refresh }),
+
+    threadsSeen.length > 0 && el("h2", {}, "Explored in"),
+    threadsSeen.length > 0 &&
+      el("ul", {}, threadsSeen.map((m) =>
+        el("li", {}, el("a", { href: `#/t/${m.thread_id}` }, state.threadTitles[m.thread_id] || "a thread")))),
+  );
+  els.concepts.querySelectorAll("a").forEach((a) => a.classList.toggle("active", a.dataset.id === id));
+}
+
+function linkForm(concept, onDone) {
+  const name = el("input", { list: "concept-options", placeholder: "Link to concept…", required: "" });
+  const note = el("input", { placeholder: "How are they connected? (optional)" });
+  const msg = el("span", { class: "form-error" });
+  let timer;
+  name.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const q = name.value.trim();
+      const options = q ? await api(`/concepts?q=${encodeURIComponent(q)}&limit=10`) : [];
+      els.conceptOptions.replaceChildren(
+        ...options.filter((c) => c.id !== concept.id).map((c) => el("option", { value: c.name })),
+      );
+    }, 150);
+  });
+  return el("form", {
+    class: "stack",
+    onsubmit: async (e) => {
+      e.preventDefault();
+      msg.textContent = "";
+      try {
+        // get-or-create: linking to a concept you haven't explored yet is fine.
+        const other = await api("/concepts", { method: "POST", body: { name: name.value } });
+        await api("/links", {
+          method: "POST",
+          body: { a_concept_id: concept.id, b_concept_id: other.id, note: note.value },
+        });
+        onDone();
+      } catch (err) {
+        msg.textContent = err.message === "HTTP 409" ? "Already linked." : err.message;
+      }
+    },
+  }, name, note, el("div", { class: "actions" }, msg, el("button", { type: "submit" }, "Link")));
+}
+
+function takeawayForm({ conceptId, messageId = null, onDone }) {
+  const kind = el("select", {},
+    el("option", { value: "takeaway" }, "takeaway"),
+    el("option", { value: "idea" }, "idea"),
+    el("option", { value: "question" }, "question"));
+  const body = el("textarea", { rows: "3", placeholder: "Your takeaway, idea, or question…", required: "" });
+  const msg = el("span", { class: "form-error" });
+  const form = el("form", {
+    class: "stack",
+    onsubmit: async (e) => {
+      e.preventDefault();
+      msg.textContent = "";
+      try {
+        await api("/takeaways", {
+          method: "POST",
+          body: { kind: kind.value, body: body.value, concept_ids: [conceptId], message_id: messageId },
+        });
+        if (messageId) form.replaceWith(el("p", { class: "muted" }, "Saved to the concept panel."));
+        else body.value = "";
+        onDone();
+      } catch (err) {
+        msg.textContent = err.message;
+      }
+    },
+  }, body, el("div", { class: "actions" }, msg, kind, el("button", { type: "submit" }, "Save")));
+  if (messageId) setTimeout(() => body.focus());
+  return form;
+}
+
 // --- events ----------------------------------------------------------------
 
 els.composer.addEventListener("submit", (e) => {
@@ -346,4 +535,5 @@ els.depth.addEventListener("change", async () => {
 els.newThread.addEventListener("click", newThread);
 window.addEventListener("hashchange", route);
 
+loadConcepts();
 route();

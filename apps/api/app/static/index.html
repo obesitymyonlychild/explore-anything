@@ -12,6 +12,8 @@
       <button id="new-thread" class="primary">+ New</button>
       <h2>Threads</h2>
       <ul id="threads" class="thread-list"></ul>
+      <h2>Concepts</h2>
+      <ul id="concepts" class="thread-list"></ul>
     </aside>
 
     <main class="main">
@@ -39,7 +41,12 @@
         <button type="submit" id="send" class="primary">Send</button>
       </form>
     </main>
+
+    <aside id="panel" class="panel" aria-label="Concept">
+      <p class="muted">Your links and takeaways for the current concept show up here.</p>
+    </aside>
   </div>
+  <datalist id="concept-options"></datalist>
   <script src="/static/app.js"></script>
 </body>
 </html>
