@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm.light import LightLLM
 from app.models import Concept, InterestEvent
+from app.services import budget
 from app.settings import get_settings
 
 RECENT_AREAS = 10  # don't repeat a topic area from the last N sparks
@@ -67,4 +68,7 @@ async def spark(
         "\n".join(f"- {name}" for name in known) or "(none yet)"
     )
     result = await llm.json(SYSTEM, prompt, SCHEMA)
-    return {"concept": result["concept"].strip(), "teaser": result["teaser"].strip(), "topic_area": area}
+    budget.record(session, user_id, "spark", result.model, result.usage)
+    await session.commit()
+    data = result.data
+    return {"concept": data["concept"].strip(), "teaser": data["teaser"].strip(), "topic_area": area}

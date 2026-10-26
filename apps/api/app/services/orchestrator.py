@@ -21,13 +21,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import SessionLocal
 from app.deps import get_owned
+from app.llm import errors
 from app.llm.client import CardLLM, Final, TextDelta, ThinkingStarted
 from app.llm.light import LightLLM
 from app.llm.partial import PartialJSON
 from app.llm.prompt import Notes, system_blocks, user_turn
 from app.models import DEPTHS, Concept, Message, Takeaway, Thread
 from app.schemas import Card, TurnRequest
-from app.services import interest, titles
+from app.services import budget, interest, titles
 from app.services.concepts import get_or_create, slugify
 from app.services.notes import load_notes
 
@@ -187,25 +188,18 @@ async def _run_turn(turn: PreparedTurn, llm: CardLLM, light_llm: LightLLM | None
                 yield sse("status", {"state": "thinking"})
             else:
                 final = event
-    except anthropic.AuthenticationError:
-        yield error("auth", "Anthropic API key missing or invalid. Check ANTHROPIC_API_KEY in .env, then restart.")
-        return
-    except anthropic.RateLimitError:
-        yield error("rate_limited", "Rate limited by the API. Try again in a moment.")
-        return
-    except anthropic.OverloadedError:
-        yield error("overloaded", "Claude is overloaded right now. Try again in a moment.")
-        return
-    except anthropic.APIStatusError as e:
-        yield error("api_error", f"API error {e.status_code}: {e.message}")
-        return
-    except anthropic.APIConnectionError:
-        yield error("connection", "Couldn't reach the Anthropic API.")
+    except anthropic.APIError as e:
+        yield error(*errors.describe(e))
         return
 
     if final is None:
         yield error("api_error", "The stream ended without a final message.")
         return
+    # Billed whether or not the card turns out usable, so record it before any other check.
+    async with SessionLocal() as session:
+        budget.record(session, turn.user_id, "turn", final.model, final.usage, thread_id=turn.thread_id)
+        await session.commit()
+
     if final.stop_reason == "refusal":
         yield error("refusal", "Claude declined this one. Try rephrasing, or pick another branch.")
         return
@@ -250,10 +244,13 @@ async def _run_turn(turn: PreparedTurn, llm: CardLLM, light_llm: LightLLM | None
     )
 
     if turn.first_turn and light_llm is not None:
-        title = await titles.generate_title(light_llm, turn.first_message, card)
-        if title:
+        title, result = await titles.generate_title(light_llm, turn.first_message, card)
+        if result is not None:
             async with SessionLocal() as session:
-                thread = await session.get(Thread, turn.thread_id)
-                thread.title = title
+                budget.record(session, turn.user_id, "title", result.model, result.usage, thread_id=turn.thread_id)
+                if title:
+                    thread = await session.get(Thread, turn.thread_id)
+                    thread.title = title
                 await session.commit()
+        if title:
             yield sse("title", {"title": title})

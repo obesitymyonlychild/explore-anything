@@ -19,10 +19,14 @@ from httpx import ASGITransport, AsyncClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
 from app.db import SessionLocal, engine  # noqa: E402
+from app.llm.client import get_llm  # noqa: E402
+from app.llm.light import get_light_llm  # noqa: E402
 from app.main import app  # noqa: E402
+from app.services import orchestrator  # noqa: E402
+from tests.fake_llm import FakeLightLLM, FakeLLM  # noqa: E402
 
 API_DIR = Path(__file__).resolve().parents[1]
-DATA_TABLES = "thread, message, concept, concept_link, takeaway, takeaway_concept, interest_event"
+DATA_TABLES = "thread, message, concept, concept_link, takeaway, takeaway_concept, interest_event, api_call"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -60,3 +64,20 @@ async def client():
 async def session():
     async with SessionLocal() as s:
         yield s
+
+
+@pytest.fixture
+def light():
+    fake = FakeLightLLM()
+    app.dependency_overrides[get_light_llm] = lambda: fake
+    yield fake
+    app.dependency_overrides.pop(get_light_llm, None)
+
+
+@pytest.fixture
+def llm(monkeypatch, light):
+    fake = FakeLLM()
+    app.dependency_overrides[get_llm] = lambda: fake
+    monkeypatch.setattr(orchestrator, "EMIT_INTERVAL", 0)  # emit every partial
+    yield fake
+    app.dependency_overrides.pop(get_llm, None)

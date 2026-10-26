@@ -169,6 +169,17 @@ class TurnRequest(BaseModel):
     topic_area: str | None = None  # spark: the area it was picked from (logged, so areas rotate)
 
 
+class UsageOut(BaseModel):
+    today_usd: float
+    month_usd: float
+    daily_budget_usd: float  # 0 = no limit
+    monthly_budget_usd: float
+    warn: bool  # at 80% of a budget
+    blocked: bool
+    reason: str | None
+    month_by_purpose: dict[str, float]  # includes eval/judge, which don't count toward budgets
+
+
 class SparkOut(BaseModel):
     concept: str
     teaser: str

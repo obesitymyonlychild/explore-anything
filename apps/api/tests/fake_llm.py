@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.llm.client import Final, StreamEvent, TextDelta, ThinkingStarted
+from app.llm.light import LightResult
 
 THINKING = {"type": "thinking", "thinking": "", "signature": "sig-abc"}
 
@@ -54,7 +55,7 @@ class FakeLightLLM:
         reply = self.replies.pop(0) if self.replies else {"title": "Generated title"}
         if isinstance(reply, Exception):
             raise reply
-        return reply
+        return LightResult(reply, "claude-haiku-5-5", {"input_tokens": 1000, "output_tokens": 100})
 
 
 @dataclass

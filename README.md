@@ -23,6 +23,20 @@ API docs: http://localhost:8000/docs
 | `make psql` | Open psql on the dev database |
 | `make db-reset` | Delete the DB volume (all local data) |
 
+## API costs and limits
+
+Every Anthropic API call is recorded with its cost in the `api_call` table. The sidebar shows today's
+and this month's spend.
+
+- **App budgets:** `DAILY_BUDGET_USD` / `MONTHLY_BUDGET_USD` in `.env` (defaults $2 / $20; 0 = no limit).
+  Once one is reached, new turns and Surprise me are refused with a clear message, and the page warns
+  from 80%. Days and months follow your computer's clock. Prices live in `apps/api/app/llm/pricing.py`.
+- **Evals:** `evals/run_cards.py` shows an estimate and asks before spending, stops at `--max-cost`
+  (default $5), and records its calls as `eval`/`judge`, which don't count toward the app budgets.
+- **Hard ceiling:** set a monthly spend limit on the API key's workspace at console.anthropic.com.
+  The app's limits are a convenience; the console's is the guarantee.
+- **Tests never call the API:** the test setup forces a dummy key and fakes every model.
+
 ## Layout
 
 ```

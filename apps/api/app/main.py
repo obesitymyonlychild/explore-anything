@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routes import concepts, health, links, spark, takeaways, threads, turns
+from app.routes import concepts, health, links, spark, takeaways, threads, turns, usage
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -20,7 +20,7 @@ async def revalidate_page_assets(request: Request, call_next):
     return response
 
 
-for module in (health, threads, turns, spark, concepts, links, takeaways):
+for module in (health, usage, threads, turns, spark, concepts, links, takeaways):
     app.include_router(module.router, prefix="/api")
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

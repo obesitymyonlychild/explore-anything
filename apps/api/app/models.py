@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
@@ -11,6 +12,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     Table,
     Text,
     UniqueConstraint,
@@ -176,6 +178,37 @@ class Takeaway(Base):
     )
 
     concepts: Mapped[list[Concept]] = relationship(secondary=takeaway_concept, lazy="selectin")
+
+
+# --- Usage & cost -----------------------------------------------------------
+
+API_PURPOSES = ("turn", "title", "spark", "eval", "judge")
+BUDGETED_PURPOSES = ("turn", "title", "spark")  # evals have their own --max-cost guard
+
+
+class ApiCall(Base):
+    """One row per Anthropic API request, with what it cost. The source for budgets and the spend line."""
+
+    __tablename__ = "api_call"
+    __table_args__ = (
+        CheckConstraint(f"purpose in {API_PURPOSES}", name="api_call_purpose_check"),
+        Index("ix_api_call_user_ts", "user_id", "ts"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = user_fk()
+    purpose: Mapped[str] = mapped_column(Text, nullable=False)
+    model: Mapped[str] = mapped_column(Text, nullable=False)
+    thread_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("thread.id", ondelete="SET NULL")
+    )
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    cache_write_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    cache_read_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    cost_usd: Mapped[Decimal] = mapped_column(Numeric(12, 6), nullable=False)
+    usage: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # raw usage block, for audits
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 # --- Signals ----------------------------------------------------------------

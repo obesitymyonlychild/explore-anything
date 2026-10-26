@@ -15,6 +15,7 @@ const els = {
   surprise: $("#surprise"),
   stop: $("#stop"),
   banner: $("#banner"),
+  spend: $("#spend"),
   concepts: $("#concepts"),
   panel: $("#panel"),
   conceptOptions: $("#concept-options"),
@@ -347,6 +348,7 @@ async function sendTurn(body) {
       replace(errorBox({ message: stopped ? "Stopped." : `Connection lost: ${e.message}` }));
     }
   }
+  checkHealth(); // spend line, and the banner if a budget is near or reached
   // The stream stays open for the title after `done`; by then a newer turn may be running.
   if (state.abort === abort) {
     state.abort = null;
@@ -366,6 +368,7 @@ async function surprise() {
   } catch (e) {
     slot.replaceWith(el("div", { class: "error" }, e.message, el("button", { type: "button", onclick: surprise }, "Retry")));
     setStreaming(false);
+    checkHealth();
     return;
   }
   slot.remove();
@@ -373,19 +376,36 @@ async function surprise() {
   sendTurn({ action: "spark", concept: pick.concept, topic_area: pick.topic_area, depth: els.depth.value });
 }
 
+// One banner for setup problems and budget warnings; refreshed on load and after every turn.
 async function checkHealth() {
+  const problems = [];
   try {
     const h = await api("/health");
-    const problems = [
-      !h.db && "The database is unreachable (is Docker running? try `make dev`).",
-      !h.anthropic_api_key && "ANTHROPIC_API_KEY is not set in .env, so cards can't be generated. Add it and restart.",
-    ].filter(Boolean);
-    els.banner.textContent = problems.join(" ");
-    els.banner.hidden = problems.length === 0;
+    if (!h.db) problems.push("The database is unreachable (is Docker running? try `make dev`).");
+    if (!h.anthropic_api_key) problems.push("ANTHROPIC_API_KEY is not set in .env, so cards can't be generated. Add it and restart.");
+    if (h.db) {
+      const u = await api("/usage");
+      showSpend(u);
+      if (u.blocked) problems.push(u.reason);
+      else if (u.warn) problems.push(`Heads up: over 80% of a budget used (${spendText(u)}).`);
+    }
   } catch {
-    els.banner.textContent = "The API server isn't responding.";
-    els.banner.hidden = false;
+    problems.push("The API server isn't responding.");
   }
+  els.banner.textContent = problems.join(" ");
+  els.banner.hidden = problems.length === 0;
+}
+
+const usd = (x) => `$${x.toFixed(2)}`;
+const limit = (x) => (x > 0 ? ` / ${usd(x)}` : "");
+
+function spendText(u) {
+  return `today ${usd(u.today_usd)}${limit(u.daily_budget_usd)} · month ${usd(u.month_usd)}${limit(u.monthly_budget_usd)}`;
+}
+
+function showSpend(u) {
+  els.spend.textContent = `API spend: ${spendText(u)}`;
+  els.spend.classList.toggle("warn", u.warn);
 }
 
 function errorBox(err) {

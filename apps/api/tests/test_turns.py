@@ -6,29 +6,8 @@ import httpx2
 import pytest
 from sqlalchemy import select
 
-from app.llm.client import get_llm
-from app.llm.light import get_light_llm
-from app.main import app
 from app.models import Concept, InterestEvent, Message, Thread
-from app.services import orchestrator
-from tests.fake_llm import THINKING, FakeLightLLM, FakeLLM, Script, card
-
-
-@pytest.fixture
-def light():
-    fake = FakeLightLLM()
-    app.dependency_overrides[get_light_llm] = lambda: fake
-    yield fake
-    app.dependency_overrides.pop(get_light_llm, None)
-
-
-@pytest.fixture
-def llm(monkeypatch, light):
-    fake = FakeLLM()
-    app.dependency_overrides[get_llm] = lambda: fake
-    monkeypatch.setattr(orchestrator, "EMIT_INTERVAL", 0)  # emit every partial
-    yield fake
-    app.dependency_overrides.pop(get_llm, None)
+from tests.fake_llm import THINKING, Script, card
 
 
 def done(events) -> dict:
