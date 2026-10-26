@@ -146,6 +146,26 @@ class Branch(BaseModel):
     concept: str
 
 
+class DiagramStep(BaseModel):
+    label: str
+    detail: str
+
+
+class Diagram(BaseModel):
+    """A flow or cycle of short steps, drawn by the page. kind="none" when the concept has no steps."""
+
+    kind: Literal["none", "flow", "cycle"]
+    title: str
+    steps: list[DiagramStep]
+
+
+class Picture(BaseModel):
+    """A Wikipedia article whose lead image shows the concept; the server resolves it to an image."""
+
+    wikipedia_title: str
+    caption: str
+
+
 class Card(BaseModel):
     """One assistant turn. Field order matches llm/card_schema.py (= streaming order)."""
 
@@ -154,9 +174,11 @@ class Card(BaseModel):
     depth: Depth
     one_liner: str
     example: str
+    diagram: Diagram
     highlights: list[str]
     bridge: str
     body_md: str
+    pictures: list[Picture]
     branches: list[Branch]
 
 

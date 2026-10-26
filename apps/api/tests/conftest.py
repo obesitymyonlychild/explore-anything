@@ -22,7 +22,7 @@ from app.db import SessionLocal, engine  # noqa: E402
 from app.llm.client import get_llm  # noqa: E402
 from app.llm.light import get_light_llm  # noqa: E402
 from app.main import app  # noqa: E402
-from app.services import orchestrator  # noqa: E402
+from app.services import orchestrator, pictures  # noqa: E402
 from tests.fake_llm import FakeLightLLM, FakeLLM  # noqa: E402
 
 API_DIR = Path(__file__).resolve().parents[1]
@@ -64,6 +64,24 @@ async def client():
 async def session():
     async with SessionLocal() as s:
         yield s
+
+
+@pytest.fixture(autouse=True)
+def no_wikipedia(monkeypatch):
+    """Tests never reach Wikipedia: each requested title resolves to a fake image."""
+
+    async def fake_resolve(pics, client=None):
+        return [
+            {
+                "title": p["wikipedia_title"],
+                "caption": p["caption"],
+                "thumb_url": "https://img/x.png",
+                "page_url": "https://wiki/x",
+            }
+            for p in pics[: pictures.MAX_PICTURES]
+        ]
+
+    monkeypatch.setattr(pictures, "resolve", fake_resolve)
 
 
 @pytest.fixture

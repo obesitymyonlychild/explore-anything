@@ -149,6 +149,48 @@ button.primary { background: var(--accent); color: var(--accent-fg); border-colo
 .card .body code { font-size: 13px; background: var(--bg); padding: 0 3px; border-radius: 3px; }
 .branches { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 
+/* --- visuals: step diagram and Wikipedia pictures --- */
+.diagram { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+.diagram figcaption { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 8px; }
+.diagram ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.diagram li {
+  position: relative;
+  flex: 1 1 130px;
+  max-width: 220px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.diagram li:not(:last-child)::after {
+  content: "→";
+  position: absolute;
+  right: -21px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--accent);
+  font-weight: 700;
+}
+.diagram .step-n { display: inline-block; min-width: 18px; color: var(--accent); font-weight: 700; }
+.diagram .step-detail { display: block; color: var(--muted); margin-top: 2px; }
+.diagram .cycle-back { margin: 8px 0 0; color: var(--accent); font-size: 13px; font-weight: 600; }
+
+.pictures { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.pictures figure { margin: 0; flex: 1 1 200px; max-width: 320px; }
+.pictures img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  background: #fff; /* many Wikipedia diagrams are transparent PNGs drawn for white */
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.pictures figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.pictures .source { color: var(--accent); text-decoration: none; white-space: nowrap; }
+
 .status { color: var(--muted); font-style: italic; }
 .status::after { content: "…"; animation: blink 1.2s infinite; }
 @keyframes blink { 50% { opacity: 0.2; } }
@@ -211,6 +253,9 @@ form.stack .actions { display: flex; gap: 6px; justify-content: flex-end; align-
 
 /* --- phone --- */
 @media (max-width: 700px) {
+  .diagram ol { flex-direction: column; gap: 22px; }
+  .diagram li { flex: none; max-width: none; }
+  .diagram li:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -20px; transform: translateX(-50%); }
   .layout { flex-direction: column; flex-wrap: nowrap; }
   .sidebar { width: auto; border-right: none; border-bottom: 1px solid var(--border); max-height: 30vh; }
   .main { height: 75vh; flex-basis: auto; }

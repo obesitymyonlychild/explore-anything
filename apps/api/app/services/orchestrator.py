@@ -28,7 +28,7 @@ from app.llm.partial import PartialJSON
 from app.llm.prompt import Notes, system_blocks, user_turn
 from app.models import DEPTHS, Concept, Message, Takeaway, Thread
 from app.schemas import Card, TurnRequest
-from app.services import budget, interest, titles
+from app.services import budget, interest, pictures, titles
 from app.services.concepts import get_or_create, slugify
 from app.services.notes import load_notes
 
@@ -36,6 +36,7 @@ log = logging.getLogger(__name__)
 
 EMIT_INTERVAL = 0.05  # seconds between partial-card events
 MAX_HIGHLIGHTS = 3
+MAX_DIAGRAM_STEPS = 6
 
 DEFAULT_TEXT = {
     "dive": "Go deeper.",
@@ -214,7 +215,13 @@ async def _run_turn(turn: PreparedTurn, llm: CardLLM, light_llm: LightLLM | None
         return
     card.depth = turn.depth
     card.highlights = card.highlights[:MAX_HIGHLIGHTS]
+    if card.diagram.kind == "none" or len(card.diagram.steps) < 2:
+        card.diagram.kind, card.diagram.steps = "none", []
+    card.diagram.steps = card.diagram.steps[:MAX_DIAGRAM_STEPS]
     card_data = card.model_dump()
+    # Images live next to the model's own fields: `pictures` is what Claude asked for (and stays in
+    # the replayed history), `images` is what Wikipedia actually returned.
+    card_data["images"] = await pictures.resolve(card_data["pictures"])
 
     async with SessionLocal() as session:
         concept = await get_or_create(session, turn.user_id, card.concept, explored=True)

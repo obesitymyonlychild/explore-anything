@@ -53,6 +53,15 @@ async def test_ask_streams_a_card_and_stores_everything(client, session, llm):
 
     finished = done(events)
     assert finished["card"]["concept"] == "Air conditioning"
+    assert finished["card"]["diagram"]["kind"] == "cycle"
+    assert finished["card"]["images"] == [
+        {
+            "title": "Vapor-compression refrigeration",
+            "caption": "the four stages",
+            "thumb_url": "https://img/x.png",
+            "page_url": "https://wiki/x",
+        }
+    ]
     assert finished["usage"]["output_tokens"] == 50
 
     user, assistant = await messages(session, tid)

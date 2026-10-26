@@ -16,9 +16,20 @@ def card(concept: str = "Air conditioning", kind: str = "intro", depth: str = "e
         "depth": depth,
         "one_liner": f"{concept} in one line.",
         "example": "Touch the back of your fridge: it's warm.",
+        "diagram": {
+            "kind": "cycle",
+            "title": "The refrigerant loop",
+            "steps": [
+                {"label": "Evaporate indoors", "detail": "absorbs room heat"},
+                {"label": "Compress", "detail": "gets hotter than outside"},
+                {"label": "Condense outdoors", "detail": "dumps the heat"},
+                {"label": "Expand", "detail": "gets cold again"},
+            ],
+        },
         "highlights": ["fact one", "fact two", "fact three"],
         "bridge": "A thermostat is a feedback controller.",
         "body_md": "",
+        "pictures": [{"wikipedia_title": "Vapor-compression refrigeration", "caption": "the four stages"}],
         "branches": [
             {"kind": "deeper", "label": "Go deeper", "concept": concept},
             {"kind": "related", "label": "Heat pumps", "concept": "Heat pump"},

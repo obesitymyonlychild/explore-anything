@@ -187,9 +187,11 @@ function renderCard(card, { final = false, messageId = null, conceptId = null } 
       el("span", { class: "card-tag" }, tag)),
     card.one_liner && el("p", { class: "one-liner" }, card.one_liner),
     card.example && el("p", {}, el("span", { class: "label" }, "Example: "), card.example),
+    renderDiagram(card.diagram),
     highlights.length > 0 && el("ul", { class: "highlights" }, highlights.map((h) => el("li", {}, h))),
     card.bridge && el("p", { class: "bridge" }, el("span", { class: "label" }, "For you: "), card.bridge),
     card.body_md && el("div", { class: "body" }, html(renderMd(card.body_md))),
+    renderImages(card.images),
     branches.length > 0 &&
       el("div", { class: "branches" },
         branches.map((b) =>
@@ -211,6 +213,34 @@ function renderCard(card, { final = false, messageId = null, conceptId = null } 
         }, "+ takeaway")),
   );
   return article;
+}
+
+// A flow (a → b → c) or a cycle (… and back to the start). Steps stream in one by one.
+function renderDiagram(d) {
+  const steps = (d?.steps || []).filter((s) => s && s.label);
+  if (!d || d.kind === "none" || steps.length < 2) return null;
+  return el("figure", { class: `diagram diagram-${d.kind}` },
+    d.title && el("figcaption", {}, d.title),
+    el("ol", {},
+      steps.map((s, i) =>
+        el("li", {},
+          el("span", { class: "step-n" }, String(i + 1)),
+          el("strong", {}, s.label),
+          s.detail && el("span", { class: "step-detail" }, s.detail)))),
+    d.kind === "cycle" && el("p", { class: "cycle-back" }, `↻ back to ${steps[0].label}`));
+}
+
+// Images the server resolved from Wikipedia (final cards only).
+function renderImages(images) {
+  if (!images || images.length === 0) return null;
+  return el("div", { class: "pictures" },
+    images.map((img) =>
+      el("figure", {},
+        el("a", { href: img.page_url, target: "_blank", rel: "noopener noreferrer" },
+          el("img", { src: img.thumb_url, alt: img.caption || img.title, loading: "lazy" })),
+        el("figcaption", {},
+          img.caption, " ",
+          el("a", { href: img.page_url, target: "_blank", rel: "noopener noreferrer", class: "source" }, `Wikipedia: ${img.title}`)))));
 }
 
 function renderMessage(msg) {

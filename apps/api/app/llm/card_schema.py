@@ -16,9 +16,39 @@ CARD_SCHEMA: dict[str, Any] = {
         "depth": {"type": "string", "enum": ["glance", "explain", "mechanism", "expert"]},
         "one_liner": _str,
         "example": _str,
+        "diagram": {
+            "type": "object",
+            "properties": {
+                "kind": {"type": "string", "enum": ["none", "flow", "cycle"]},
+                "title": _str,
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {"label": _str, "detail": _str},
+                        "required": ["label", "detail"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            "required": ["kind", "title", "steps"],
+            "additionalProperties": False,
+        },
         "highlights": {"type": "array", "items": _str},
         "bridge": _str,
         "body_md": _str,
+        "pictures": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "wikipedia_title": {**_str, "description": "Exact English Wikipedia article title."},
+                    "caption": _str,
+                },
+                "required": ["wikipedia_title", "caption"],
+                "additionalProperties": False,
+            },
+        },
         "branches": {
             "type": "array",
             "items": {
@@ -33,7 +63,19 @@ CARD_SCHEMA: dict[str, Any] = {
             },
         },
     },
-    "required": ["concept", "kind", "depth", "one_liner", "example", "highlights", "bridge", "body_md", "branches"],
+    "required": [
+        "concept",
+        "kind",
+        "depth",
+        "one_liner",
+        "example",
+        "diagram",
+        "highlights",
+        "bridge",
+        "body_md",
+        "pictures",
+        "branches",
+    ],
     "additionalProperties": False,
 }
 

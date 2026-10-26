@@ -107,8 +107,11 @@ One schema for every assistant turn, enforced with Claude **structured outputs**
   "one_liner":  "A heat pump that moves heat out of a room.",
   "example":    "Touch the back of your fridge...",
   "highlights": ["...", "...", "..."],       // 0–3
+  "diagram":    {"kind": "cycle", "title": "How a fridge moves heat",   // none | flow | cycle
+                 "steps": [{"label": "Refrigerant evaporates", "detail": "soaks up heat from food"}, ...]},
   "bridge":     "A thermostat is a feedback controller...", // "" if no good analogy
   "body_md":    "",                          // longer explanation (deeper levels, free questions)
+  "pictures":   [{"wikipedia_title": "Vapor-compression refrigeration", "caption": "Vapor-compression refrigeration on Wikipedia"}],
   "branches": [
     {"kind": "deeper",  "label": "Go deeper",           "concept": "Air conditioning"},
     {"kind": "related", "label": "Refrigeration cycle", "concept": "Vapor-compression refrigeration cycle"},
@@ -117,6 +120,15 @@ One schema for every assistant turn, enforced with Claude **structured outputs**
   ]
 }
 ```
+**Visuals** (adapted from the `visual-briefing` skill: smallest useful visual, never one that repeats the text):
+- `diagram` is drawn by the page from 3–6 short steps, only for a real sequence (`flow`) or loop (`cycle`);
+  otherwise `kind: "none"`. No Mermaid, so there's no diagram syntax that can fail to render.
+- `pictures` are English Wikipedia article titles. The server resolves each one to the article's lead image
+  through Wikipedia's free REST API (`services/pictures.py`) and adds `images: [{title, caption, thumb_url,
+  page_url}]` to the stored card. Claude never writes image URLs, and captions name the subject only, since
+  Claude can't see the image. Lookups cost nothing; throttled lookups (403/429) are retried once and never cached.
+- Cost: about 120 extra output tokens per card (~$0.002).
+
 Rules (in the system prompt):
 - **intro**: `one_liner` + `example` + 2–3 `highlights` required.
 - **deeper**: example and highlights move to the new level of detail; `body_md` carries the explanation.
