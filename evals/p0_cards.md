@@ -41,13 +41,41 @@ checked by hand. A 36° phase error leaves |1 − e^{i·36°}| ≈ 0.62, about �
    (glymphatic clearance during sleep), and cards that contradict themselves (a "boiling" example next to a
    body describing a pressurized reactor).
 
-## Run 2: tuned prompt (pending)
+## Run 2: tuned prompt (2026-10-25)
 
 `prompts/system.md` now has stricter rules: bridges only when the mapping is structural (expect about half
-empty), a plain-language one-liner and a real scene at every depth, and a new Accuracy section (round numbers
-and ranges, no overstated consensus, self-consistency, sanity-check calculations). This run **has not run
-yet**: the API account ran out of credit before it started. Re-run with `--label tuned`, then compare.
+empty), a plain-language one-liner and a real scene at every depth, and an Accuracy section (round numbers and
+ranges, no overstated consensus, self-consistency, sanity-check calculations). The prompt's bridge example
+was moved off the eval set (thermostat, not headphones).
 
-## Decision so far
-Keep `CHAT_EFFORT=medium` until the tuned run is in. If the tuned prompt closes most of the quality gap at
-`low`, switch the default to `low` for the ~1 s first text.
+| effort | turn | first text (s) | total (s) | output tok | thinking tok | hook | example | highlights | bridge | depth fit | issues |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| low | intro | 1.2 | 9.4 | 813 | 0 | 3.9 | 4.0 | 3.7 | 3.6 | 4.2 | 32 |
+| low | dive | 1.1 | 15.6 | 1387 | 0 | 4.0 | 3.9 | 3.7 | 3.9 | 4.6 | 30 |
+| medium | intro | 9.8 | 17.3 | 1573 | 695 | 4.0 | 4.1 | 4.3 | 4.2 | 4.3 | 26 |
+| medium | dive | 13.6 | 29.1 | 2819 | 1284 | 3.9 | 4.0 | 4.1 | 3.9 | 4.7 | 30 |
+
+### Baseline → tuned
+
+| | low | medium |
+|---|---|---|
+| Accuracy flags (30 cards) | 85 → **62** (−27%) | 71 → **56** (−21%) |
+| Deeper-card hook | 3.6 → **4.0** | 3.6 → **3.9** |
+| Cards with a bridge | 30/30 → 15/30 | 29/30 → 21/30 |
+| Score of the bridges that remain | 3.5 → **4.7** | 4.2 → **4.5** |
+| Deeper one-liner length (words, median) | 36 → 30 | 33 → 29 |
+| Highlights | 3.8 → 3.7 | 4.4 → 4.2 |
+
+The per-card `bridge` average barely moves because an empty bridge scores a neutral 3; the bridges that remain
+are much better. Highlights dipped slightly, within judge noise for n=15.
+
+### Low vs medium, with the tuned prompt
+- **Speed:** low shows text after ~1 s vs 10–14 s, and finishes 45% sooner on deeper cards (16 s vs 29 s).
+- **Cost:** low uses about half the output tokens (≈ $0.02 vs $0.04 per card).
+- **Quality:** equal on hook, example and depth fit, and similar on accuracy (62 vs 56 flags).
+  Medium keeps an edge on **highlights (+0.4 to +0.6)** and writes a bridge more often.
+
+## Decision
+- **Keep the tuned prompt.** It's better at both efforts, mainly on accuracy and deeper-card hooks.
+- Effort: see the conversation of 2026-10-25. Recommendation: `low` (1 s first text, half the cost, a small
+  highlights gap). Default stays `medium` until the user decides.
