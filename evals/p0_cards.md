@@ -77,5 +77,5 @@ are much better. Highlights dipped slightly, within judge noise for n=15.
 
 ## Decision
 - **Keep the tuned prompt.** It's better at both efforts, mainly on accuracy and deeper-card hooks.
-- Effort: see the conversation of 2026-10-25. Recommendation: `low` (1 s first text, half the cost, a small
-  highlights gap). Default stays `medium` until the user decides.
+- **Effort: `low`** (decided 2026-10-25): text after ~1 s, half the cost, with a small highlights gap.
+  Set `CHAT_EFFORT=medium` in `.env` to switch back.

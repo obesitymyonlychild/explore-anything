@@ -139,7 +139,7 @@ Rules (in the system prompt):
 ### 5.1 Calls
 | Call | Model | Settings |
 |---|---|---|
-| **Turn** (hook card) | `claude-opus-5-5` | streaming; `output_config: {effort: "medium", format: <card schema>}`; adaptive thinking (default); `max_tokens: 16000`; `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`) |
+| **Turn** (hook card) | `claude-opus-5-5` | streaming; `output_config: {effort: "low", format: <card schema>}` (low since M6; see evals/p0_cards.md); adaptive thinking (default); `max_tokens: 16000`; `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`) |
 | **Title** | `claude-haiku-5-5` | small schema `{title}`, after the first turn |
 | **Spark** | `claude-haiku-5-5` | small schema `{concept, teaser}` |
 
@@ -348,4 +348,4 @@ Tests: the partial-JSON parser, prompt assembly (including the injected links an
 3. **Takeaways can attach to several concepts.** An idea that bridges two concepts (e.g. AC + anomaly detection) belongs to both.
 4. **Claude sees your links and takeaways for the current concept**, so it can answer "does that exist?" in context.
 5. **Profile is a text file** in the MVP, so it needs no UI.
-6. **Opus 5.5 at medium effort** for cards, Haiku 5.5 for titles and sparks; refusal fallback on. Revisit at M6.
+6. **Opus 5.5 at low effort** for cards (decided in M6: ~1 s to first text, half the cost; medium only wins on highlights), Haiku 5.5 for titles and sparks; refusal fallback on.

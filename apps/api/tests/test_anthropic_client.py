@@ -7,6 +7,7 @@ import httpx2  # the SDK's HTTP layer (anthropic>=1.x); objects passed to it mus
 
 from app.llm.card_schema import OUTPUT_FORMAT
 from app.llm.client import FALLBACK_BETA, AnthropicCardLLM, Final, TextDelta, ThinkingStarted
+from app.settings import get_settings
 
 
 def sse_body(card_text: str) -> str:
@@ -93,7 +94,7 @@ async def test_request_shape_and_stream_parsing():
     assert body["model"] == "claude-opus-5-5"
     assert body["stream"] is True
     assert body["system"] == system and body["messages"] == messages
-    assert body["output_config"] == {"effort": "medium", "format": OUTPUT_FORMAT}
+    assert body["output_config"] == {"effort": get_settings().chat_effort, "format": OUTPUT_FORMAT}
     assert body["fallbacks"] == "default"
     assert body["cache_control"] == {"type": "ephemeral"}
     assert "thinking" not in body and "temperature" not in body
