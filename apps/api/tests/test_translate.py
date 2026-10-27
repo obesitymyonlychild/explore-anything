@@ -29,7 +29,12 @@ async def test_each_card_gets_chinese_after_done(client, session, llm, light):
     zh = translations[-1]
     assert zh["message_id"] == done["message_id"]
     assert zh["zh"]["one_liner"] == "中:Air conditioning in one line."
-    assert zh["zh"]["diagram_steps"][0] == {"label": "中:Evaporate indoors", "detail": "中:absorbs room heat"}
+    assert zh["zh"]["diagram_items"][0] == {
+        "label": "中:Evaporate indoors",
+        "detail": "中:absorbs room heat",
+        "detail_b": "",
+        "value_text": "",
+    }
     assert zh["zh"]["branch_labels"] == ["中:Go deeper", "中:Heat pumps", "中:Refrigerants", "中:Something else"]
     assert zh["zh"]["captions"] == ["中:the four stages"]
     assert (await stored_card(session, done["message_id"]))["zh"] == zh["zh"]
@@ -93,7 +98,8 @@ async def test_lists_are_fitted_to_the_english_lengths():
                 "one_liner": "",
                 "example": "",
                 "diagram_title": "",
-                "diagram_steps": [],  # model dropped the steps
+                "diagram_columns": [],
+                "diagram_items": [],  # model dropped the items
                 "highlights": ["一", "二", "三", "四"],  # and added a highlight
                 "bridge": "",
                 "body_md": "",
@@ -104,11 +110,11 @@ async def test_lists_are_fitted_to_the_english_lengths():
     )
     zh, _ = await translate.translate_card(fake, {**card(), "images": [{"caption": "c"}]})
     assert zh["highlights"] == ["一", "二", "三"]
-    assert len(zh["diagram_steps"]) == 4 and zh["diagram_steps"][0] == {"label": "", "detail": ""}
+    assert len(zh["diagram_items"]) == 4 and zh["diagram_items"][0]["label"] == ""
     assert zh["captions"] == [""]
     assert zh["branch_labels"] == ["深入", "", "", ""]
 
 
-@pytest.mark.parametrize("field", ["concept", "body_md", "diagram_steps", "branch_labels"])
+@pytest.mark.parametrize("field", ["concept", "body_md", "diagram_items", "diagram_columns", "branch_labels"])
 def test_payload_covers_every_text_field(field):
     assert field in translate.payload(card())

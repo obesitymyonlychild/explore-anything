@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from app.llm.light import LightLLM, LightResult
+from app.services.diagrams import items_of
 
 SYSTEM = """You translate cards from a learning app into Simplified Chinese (简体中文) for a reader \
 who is fluent in both languages and is learning the topic.
@@ -33,12 +34,13 @@ SCHEMA: dict[str, Any] = {
         "one_liner": _str,
         "example": _str,
         "diagram_title": _str,
-        "diagram_steps": {
+        "diagram_columns": _list,
+        "diagram_items": {
             "type": "array",
             "items": {
                 "type": "object",
-                "properties": {"label": _str, "detail": _str},
-                "required": ["label", "detail"],
+                "properties": {"label": _str, "detail": _str, "detail_b": _str, "value_text": _str},
+                "required": ["label", "detail", "detail_b", "value_text"],
                 "additionalProperties": False,
             },
         },
@@ -53,7 +55,8 @@ SCHEMA: dict[str, Any] = {
         "one_liner",
         "example",
         "diagram_title",
-        "diagram_steps",
+        "diagram_columns",
+        "diagram_items",
         "highlights",
         "bridge",
         "body_md",
@@ -73,7 +76,11 @@ def payload(card: dict[str, Any]) -> dict[str, Any]:
         "one_liner": card.get("one_liner", ""),
         "example": card.get("example", ""),
         "diagram_title": diagram.get("title", ""),
-        "diagram_steps": [{"label": s["label"], "detail": s["detail"]} for s in diagram.get("steps", [])],
+        "diagram_columns": list(diagram.get("columns", [])),
+        "diagram_items": [
+            {"label": i["label"], "detail": i["detail"], "detail_b": i["detail_b"], "value_text": i["value_text"]}
+            for i in items_of(diagram)
+        ],
         "highlights": list(card.get("highlights", [])),
         "bridge": card.get("bridge", ""),
         "body_md": card.get("body_md", ""),
@@ -89,9 +96,10 @@ def _fit(items: list, n: int, empty: Any) -> list:
 
 def _fitted(zh: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
     zh = dict(zh)
-    for key in ("highlights", "captions", "branch_labels"):
+    for key in ("highlights", "captions", "branch_labels", "diagram_columns"):
         zh[key] = _fit(zh.get(key, []), len(source[key]), "")
-    zh["diagram_steps"] = _fit(zh.get("diagram_steps", []), len(source["diagram_steps"]), {"label": "", "detail": ""})
+    blank = {"label": "", "detail": "", "detail_b": "", "value_text": ""}
+    zh["diagram_items"] = _fit(zh.get("diagram_items", []), len(source["diagram_items"]), blank)
     return zh
 
 

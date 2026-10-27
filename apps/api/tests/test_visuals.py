@@ -3,8 +3,8 @@ import json
 import httpx
 import pytest
 
-from app.services import pictures
-from tests.fake_llm import Script, card
+from app.services import diagrams, pictures
+from tests.fake_llm import Script, card, item
 from tests.test_turns import new_thread, turn
 
 
@@ -79,12 +79,40 @@ async def test_network_errors_mean_no_picture(real_resolve):
 
 
 async def test_one_step_diagram_is_dropped(client, llm):
-    bad = card(diagram={"kind": "flow", "title": "x", "steps": [{"label": "only one", "detail": ""}]})
+    bad = card(diagram={"kind": "flow", "title": "x", "columns": [], "items": [item("only one")]})
     llm.scripts.append(Script(json.dumps(bad)))
     tid = await new_thread(client)
     events = await turn(client, tid, action="ask", text="hi")
     done = next(d for e, d in events if e == "done")
-    assert done["card"]["diagram"] == {"kind": "none", "title": "x", "steps": []}
+    assert done["card"]["diagram"] == diagrams.EMPTY
+
+
+def d(kind, items, columns=(), title="t"):
+    return {"kind": kind, "title": title, "columns": list(columns), "items": items}
+
+
+def test_bars_need_positive_values():
+    cleaned = diagrams.clean(d("bars", [item("a", value=5), item("b", value=0), item("c", value=2_700)]))
+    assert [i["label"] for i in cleaned["items"]] == ["a", "c"]
+    assert diagrams.clean(d("bars", [item("a", value=5), item("b", value=-1)]))["kind"] == "none"
+
+
+def test_compare_needs_two_columns():
+    rows = [item("cost", "low", "high"), item("speed", "slow", "fast")]
+    assert diagrams.clean(d("compare", rows, columns=["Bus", "Taxi"]))["columns"] == ["Bus", "Taxi"]
+    assert diagrams.clean(d("compare", rows, columns=["Bus"]))["kind"] == "none"
+
+
+def test_minimums_caps_and_unknown_kinds():
+    assert diagrams.clean(d("cycle", [item("a"), item("b")]))["kind"] == "none"  # a loop needs 3 stages
+    assert len(diagrams.clean(d("timeline", [item(str(y)) for y in range(10)]))["items"]) == 7
+    assert diagrams.clean(d("venn", [item("a"), item("b")]))["kind"] == "none"
+    assert diagrams.clean(d("flow", [item("a"), item("b")], columns=["x", "y"]))["columns"] == []
+
+
+def test_old_stored_diagrams_still_have_items():
+    old = {"kind": "flow", "title": "t", "steps": [{"label": "a", "detail": "x"}, {"label": "b", "detail": "y"}]}
+    assert diagrams.items_of(old)[1] == item("b", "y")
 
 
 async def test_throttling_is_retried_and_never_cached(real_resolve, monkeypatch):

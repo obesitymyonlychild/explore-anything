@@ -195,7 +195,6 @@ function bi(en, zh) {
 const LABELS = {
   example: { en: "Example: ", zh: "例子：" },
   bridge: { en: "For you: ", zh: "联系你的领域：" },
-  back: { en: "back to", zh: "回到" },
 };
 const label = (key) => (state.lang === "zh" ? LABELS[key].zh : LABELS[key].en);
 
@@ -285,21 +284,148 @@ function renderBody(md, zhMd) {
   return el("div", { class: "body" }, html(renderMd(md)), zhBlock);
 }
 
-// A flow (a → b → c) or a cycle (… and back to the start). Steps stream in one by one.
+// --- diagrams ----------------------------------------------------------------
+// The card supplies structured items; each kind is drawn here (see services/diagrams.py).
+// Items stream in one by one, so every renderer copes with a partial list.
+
+const MIN_ITEMS = { flow: 2, cycle: 3, timeline: 2, compare: 2, bars: 2, causes: 2 };
+
+function diagramItems(d) {
+  // Cards stored before 2026-10-28 have {steps: [{label, detail}]}.
+  return (d.items || d.steps || []).filter((i) => i && i.label);
+}
+
+function zhDiagram(zh) {
+  const items = zh.diagram_items || zh.diagram_steps || [];
+  return { title: zh.diagram_title, columns: zh.diagram_columns || [], items };
+}
+
+// Text for a tight spot (ring labels, column headings): one language only.
+const pick = (en, zh) => (state.lang === "zh" && zh ? zh : en);
+
 function renderDiagram(d, zh = {}) {
-  const steps = (d?.steps || []).filter((s) => s && s.label);
-  if (!d || d.kind === "none" || steps.length < 2) return null;
-  const zhSteps = zh.diagram_steps || [];
-  const firstLabel = state.lang === "zh" && zhSteps[0]?.label ? zhSteps[0].label : steps[0].label;
+  if (!d || !MIN_ITEMS[d.kind]) return null;
+  const items = diagramItems(d);
+  if (items.length < MIN_ITEMS[d.kind]) return null;
+  const z = zhDiagram(zh);
+  const draw = { flow: drawFlow, cycle: drawCycle, timeline: drawTimeline, bars: drawBars, compare: drawCompare, causes: drawCauses }[d.kind];
   return el("figure", { class: `diagram diagram-${d.kind}` },
-    d.title && el("figcaption", {}, ...bi(d.title, zh.diagram_title)),
-    el("ol", {},
-      steps.map((s, i) =>
+    d.title && el("figcaption", {}, ...bi(d.title, z.title)),
+    draw(items, z, d));
+}
+
+function drawFlow(items, z) {
+  return el("ol", { class: "flow" },
+    items.map((s, i) =>
+      el("li", {},
+        el("span", { class: "step-n" }, String(i + 1)),
+        el("strong", {}, ...bi(s.label, z.items[i]?.label)),
+        s.detail && el("span", { class: "step-detail" }, ...bi(s.detail, z.items[i]?.detail)))));
+}
+
+let svgIds = 0;
+function svg(tag, attrs = {}, ...children) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  node.append(...children);
+  return node;
+}
+
+// A real ring: stages placed around a circle, arcs with arrowheads between them, details below.
+function drawCycle(items, z) {
+  const n = items.length;
+  const R = 38; // ring radius, in % of the box
+  const pos = (i) => {
+    const a = -Math.PI / 2 + (2 * Math.PI * i) / n;
+    return [50 + R * Math.cos(a), 50 + R * Math.sin(a), a];
+  };
+  const id = `arrow-${++svgIds}`;
+  const gap = Math.min(0.32, Math.PI / n / 1.6); // leave room around each node
+  const arcs = items.map((_, i) => {
+    const a1 = -Math.PI / 2 + (2 * Math.PI * i) / n + gap;
+    const a2 = -Math.PI / 2 + (2 * Math.PI * (i + 1)) / n - gap;
+    const [x1, y1] = [50 + R * Math.cos(a1), 50 + R * Math.sin(a1)];
+    const [x2, y2] = [50 + R * Math.cos(a2), 50 + R * Math.sin(a2)];
+    return svg("path", { d: `M ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2}`, class: "ring-arc", "marker-end": `url(#${id})` });
+  });
+  const ring = svg("svg", { viewBox: "0 0 100 100", class: "ring", "aria-hidden": "true" },
+    svg("defs", {},
+      svg("marker", { id, viewBox: "0 0 10 10", refX: "8", refY: "5", markerWidth: "5", markerHeight: "5", orient: "auto-start-reverse" },
+        svg("path", { d: "M 0 0 L 10 5 L 0 10 z", class: "ring-head" }))),
+    ...arcs);
+  const nodes = items.map((s, i) => {
+    const [x, y] = pos(i);
+    return el("div", { class: "ring-node", style: `left:${x}%;top:${y}%` },
+      el("span", { class: "step-n" }, String(i + 1)), " ", pick(s.label, z.items[i]?.label));
+  });
+  return el("div", {},
+    el("div", { class: "ring-box" }, ring, ...nodes),
+    el("ol", { class: "legend" },
+      items.map((s, i) =>
         el("li", {},
-          el("span", { class: "step-n" }, String(i + 1)),
-          el("strong", {}, ...bi(s.label, zhSteps[i]?.label)),
-          s.detail && el("span", { class: "step-detail" }, ...bi(s.detail, zhSteps[i]?.detail))))),
-    d.kind === "cycle" && el("p", { class: "cycle-back" }, `↻ ${label("back")} ${firstLabel}`));
+          el("strong", {}, ...bi(s.label, z.items[i]?.label)),
+          s.detail && el("span", { class: "step-detail" }, ...bi(s.detail, z.items[i]?.detail))))));
+}
+
+function drawTimeline(items, z) {
+  return el("ol", { class: "timeline" },
+    items.map((s, i) =>
+      el("li", {},
+        el("span", { class: "when" }, ...bi(s.label, z.items[i]?.label)),
+        el("span", { class: "what" }, ...bi(s.detail, z.items[i]?.detail)))));
+}
+
+// Bars to scale. Linear, so "8,000 L vs 40 L" looks as big as it is; log only when the values span
+// more than 1,000x and linear would leave most bars invisible.
+function drawBars(rawItems, z) {
+  // Sorted by size so the comparison reads at a glance; z.items stay paired via the original index.
+  const order = rawItems.map((it, i) => [it, i]).sort((a, b) => (Number(a[0].value) || 0) - (Number(b[0].value) || 0));
+  const items = order.map(([it]) => it);
+  z = { ...z, items: order.map(([, i]) => z.items[i]) };
+  const vals = items.map((i) => Number(i.value) || 0).filter((v) => v > 0);
+  if (vals.length < 2) return el("p", { class: "muted" }, "…");
+  const max = Math.max(...vals);
+  const min = Math.min(...vals);
+  const log = max / min > 1000;
+  const width = (v) => {
+    if (!(v > 0)) return 0;
+    if (!log) return (100 * v) / max;
+    const lo = Math.log10(min) - 0.3;
+    return (100 * (Math.log10(v) - lo)) / (Math.log10(max) - lo);
+  };
+  return el("div", {},
+    el("div", { class: "bars" },
+      items.map((s, i) =>
+        el("div", { class: "bar-row" },
+          el("span", { class: "bar-label" }, ...bi(s.label, z.items[i]?.label)),
+          el("span", { class: "bar-track" },
+            el("span", { class: "bar-fill", style: `width:${Math.max(2, width(Number(s.value))).toFixed(1)}%` })),
+          el("span", { class: "bar-value" }, pick(s.value_text || String(s.value), z.items[i]?.value_text))))),
+    log && el("p", { class: "scale-note" }, state.lang === "zh" ? "对数刻度：每一格是十倍" : "Log scale: each step is 10×"));
+}
+
+function drawCompare(items, z, d) {
+  const cols = d.columns || [];
+  return el("table", { class: "compare" },
+    el("thead", {}, el("tr", {}, el("th", {}), ...[0, 1].map((c) => el("th", {}, pick(cols[c] || "", z.columns[c]))))),
+    el("tbody", {},
+      items.map((s, i) =>
+        el("tr", {},
+          el("th", { scope: "row" }, ...bi(s.label, z.items[i]?.label)),
+          el("td", {}, ...bi(s.detail, z.items[i]?.detail)),
+          el("td", {}, ...bi(s.detail_b, z.items[i]?.detail_b))))));
+}
+
+// Factors on the left converge on the outcome (the diagram title) on the right.
+function drawCauses(items, z, d) {
+  return el("div", { class: "causes" },
+    el("ul", { class: "factors" },
+      items.map((s, i) =>
+        el("li", {},
+          el("strong", {}, ...bi(s.label, z.items[i]?.label)),
+          s.detail && el("span", { class: "step-detail" }, ...bi(s.detail, z.items[i]?.detail))))),
+    el("div", { class: "converge", "aria-hidden": "true" }, "→"),
+    el("div", { class: "outcome" }, pick(d.title || "", z.title)));
 }
 
 // Images the server resolved from Wikipedia (final cards only).

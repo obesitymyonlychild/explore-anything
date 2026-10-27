@@ -162,33 +162,65 @@ button.primary { background: var(--accent); color: var(--accent-fg); border-colo
 .card .body code { font-size: 13px; background: var(--bg); padding: 0 3px; border-radius: 3px; }
 .branches { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 
-/* --- visuals: step diagram and Wikipedia pictures --- */
+/* --- visuals: diagrams and Wikipedia pictures --- */
 .diagram { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
-.diagram figcaption { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 8px; }
-.diagram ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 28px; }
-.diagram li {
-  position: relative;
-  flex: 1 1 130px;
-  max-width: 220px;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--panel);
-  font-size: 13px;
-  line-height: 1.35;
-}
-.diagram li:not(:last-child)::after {
-  content: "→";
-  position: absolute;
-  right: -21px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--accent);
-  font-weight: 700;
-}
+.diagram figcaption { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 10px; }
+.diagram figcaption .zh { text-transform: none; }
 .diagram .step-n { display: inline-block; min-width: 18px; color: var(--accent); font-weight: 700; }
 .diagram .step-detail { display: block; color: var(--muted); margin-top: 2px; }
-.diagram .cycle-back { margin: 8px 0 0; color: var(--accent); font-size: 13px; font-weight: 600; }
+
+/* flow: boxes with arrows */
+.flow { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.flow li {
+  position: relative; flex: 1 1 130px; max-width: 220px; padding: 6px 8px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--panel); font-size: 13px; line-height: 1.35;
+}
+.flow li:not(:last-child)::after {
+  content: "→"; position: absolute; right: -21px; top: 50%; transform: translateY(-50%); color: var(--accent); font-weight: 700;
+}
+
+/* cycle: a ring with labelled stages, details in a legend */
+.ring-box { position: relative; width: min(100%, 380px); aspect-ratio: 1; margin: 0 auto 6px; }
+.ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ring-arc { fill: none; stroke: var(--accent); stroke-width: 1.2; opacity: 0.75; }
+.ring-head { fill: var(--accent); }
+.ring-node {
+  position: absolute; transform: translate(-50%, -50%); max-width: 34%; padding: 4px 7px; text-align: center;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px; font-size: 12.5px; font-weight: 600; line-height: 1.25;
+}
+.legend { margin: 4px 0 0; padding-left: 22px; font-size: 13px; }
+.legend li { margin: 3px 0; }
+.legend li::marker { color: var(--accent); font-weight: 700; }
+
+/* timeline: a vertical line with marked points */
+.timeline { list-style: none; margin: 0; padding: 0 0 0 4px; }
+.timeline li { display: grid; grid-template-columns: minmax(64px, max-content) 1fr; gap: 12px; position: relative; padding: 0 0 10px; font-size: 13.5px; }
+.timeline .when { font-weight: 700; color: var(--accent); text-align: right; }
+.timeline .what { border-left: 2px solid var(--border); padding-left: 14px; position: relative; }
+.timeline .what::before {
+  content: ""; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent);
+}
+
+/* bars: to scale */
+.bars { display: grid; grid-template-columns: max-content 1fr max-content; gap: 6px 10px; align-items: center; font-size: 13px; }
+.bar-row { display: contents; }
+.bar-track { height: 14px; background: var(--border); border-radius: 7px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 7px; }
+.bar-value { font-variant-numeric: tabular-nums; font-weight: 600; }
+.scale-note { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+
+/* compare: a two-column table */
+.compare { width: 100%; border-collapse: collapse; font-size: 13px; }
+.compare th, .compare td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.compare thead th { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+.compare tbody th { color: var(--muted); font-weight: 600; width: 22%; }
+
+/* causes: factors converging on one outcome */
+.causes { display: grid; grid-template-columns: 1fr auto minmax(120px, 34%); gap: 10px; align-items: center; }
+.factors { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+.factors li { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); }
+.converge { color: var(--accent); font-size: 24px; font-weight: 700; }
+.outcome { padding: 10px; border: 2px solid var(--accent); border-radius: 8px; background: var(--panel); font-weight: 700; text-align: center; }
 
 .pictures { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
 .pictures figure { margin: 0; flex: 1 1 200px; max-width: 320px; }
@@ -260,15 +292,21 @@ form.stack .actions { display: flex; gap: 6px; justify-content: flex-end; align-
 /* --- narrower screens: panel moves under the chat --- */
 @media (max-width: 1100px) {
   .layout { flex-wrap: wrap; height: auto; min-height: 100vh; }
+  .sidebar { max-height: 100vh; } /* scrolls by itself; a long list must not push the panel down */
   .main { height: 100vh; flex-basis: calc(100% - 220px); }
   .panel { width: 100%; border-left: none; border-top: 1px solid var(--border); }
 }
 
 /* --- phone --- */
 @media (max-width: 700px) {
-  .diagram ol { flex-direction: column; gap: 22px; }
-  .diagram li { flex: none; max-width: none; }
-  .diagram li:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -20px; transform: translateX(-50%); }
+  .flow { flex-direction: column; gap: 22px; }
+  .flow li { flex: none; max-width: none; }
+  .flow li:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -20px; transform: translateX(-50%); }
+  .ring-node { font-size: 11px; max-width: 38%; }
+  .bars { grid-template-columns: 1fr max-content; }
+  .bar-label { grid-column: 1 / -1; margin-bottom: -4px; }
+  .causes { grid-template-columns: 1fr; }
+  .converge { transform: rotate(90deg); justify-self: center; }
   .layout { flex-direction: column; flex-wrap: nowrap; }
   .sidebar { width: auto; border-right: none; border-bottom: 1px solid var(--border); max-height: 30vh; }
   .main { height: 75vh; flex-basis: auto; }

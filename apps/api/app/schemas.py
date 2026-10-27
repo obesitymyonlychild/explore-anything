@@ -146,17 +146,26 @@ class Branch(BaseModel):
     concept: str
 
 
-class DiagramStep(BaseModel):
+DiagramKind = Literal["none", "flow", "cycle", "timeline", "compare", "bars", "causes"]
+
+
+class DiagramItem(BaseModel):
+    """One element of a diagram; which fields matter depends on the kind (see services/diagrams.py)."""
+
     label: str
     detail: str
+    detail_b: str  # compare: the second column; otherwise ""
+    value: float  # bars: the quantity; otherwise 0
+    value_text: str  # bars: the quantity as shown ("2,700 L"); otherwise ""
 
 
 class Diagram(BaseModel):
-    """A flow or cycle of short steps, drawn by the page. kind="none" when the concept has no steps."""
+    """A small visual drawn by the page. kind="none" when no visual adds anything."""
 
-    kind: Literal["none", "flow", "cycle"]
+    kind: DiagramKind
     title: str
-    steps: list[DiagramStep]
+    columns: list[str]  # compare: the two column headings; otherwise []
+    items: list[DiagramItem]
 
 
 class Picture(BaseModel):

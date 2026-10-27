@@ -9,6 +9,10 @@ from app.llm.light import LightResult
 THINKING = {"type": "thinking", "thinking": "", "signature": "sig-abc"}
 
 
+def item(label: str, detail: str = "", detail_b: str = "", value: float = 0, value_text: str = "") -> dict:
+    return {"label": label, "detail": detail, "detail_b": detail_b, "value": value, "value_text": value_text}
+
+
 def card(concept: str = "Air conditioning", kind: str = "intro", depth: str = "explain", **overrides) -> dict:
     c = {
         "concept": concept,
@@ -19,11 +23,12 @@ def card(concept: str = "Air conditioning", kind: str = "intro", depth: str = "e
         "diagram": {
             "kind": "cycle",
             "title": "The refrigerant loop",
-            "steps": [
-                {"label": "Evaporate indoors", "detail": "absorbs room heat"},
-                {"label": "Compress", "detail": "gets hotter than outside"},
-                {"label": "Condense outdoors", "detail": "dumps the heat"},
-                {"label": "Expand", "detail": "gets cold again"},
+            "columns": [],
+            "items": [
+                item("Evaporate indoors", "absorbs room heat"),
+                item("Compress", "gets hotter than outside"),
+                item("Condense outdoors", "dumps the heat"),
+                item("Expand", "gets cold again"),
             ],
         },
         "highlights": ["fact one", "fact two", "fact three"],

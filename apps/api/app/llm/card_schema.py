@@ -19,19 +19,29 @@ CARD_SCHEMA: dict[str, Any] = {
         "diagram": {
             "type": "object",
             "properties": {
-                "kind": {"type": "string", "enum": ["none", "flow", "cycle"]},
+                "kind": {
+                    "type": "string",
+                    "enum": ["none", "flow", "cycle", "timeline", "compare", "bars", "causes"],
+                },
                 "title": _str,
-                "steps": {
+                "columns": {"type": "array", "items": _str},
+                "items": {
                     "type": "array",
                     "items": {
                         "type": "object",
-                        "properties": {"label": _str, "detail": _str},
-                        "required": ["label", "detail"],
+                        "properties": {
+                            "label": _str,
+                            "detail": _str,
+                            "detail_b": _str,
+                            "value": {"type": "number"},
+                            "value_text": _str,
+                        },
+                        "required": ["label", "detail", "detail_b", "value", "value_text"],
                         "additionalProperties": False,
                     },
                 },
             },
-            "required": ["kind", "title", "steps"],
+            "required": ["kind", "title", "columns", "items"],
             "additionalProperties": False,
         },
         "highlights": {"type": "array", "items": _str},
