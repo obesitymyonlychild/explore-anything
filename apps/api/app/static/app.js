@@ -272,7 +272,9 @@ function renderCard(card, { final = false, messageId = null, conceptId = null } 
           },
         }, "+ takeaway"),
         needsTranslation &&
-          el("button", { type: "button", class: "link-button translate", onclick: (e) => translateCard(messageId, e.target) }, "翻译成中文")),
+          el("button", { type: "button", class: "link-button translate", onclick: (e) => translateCard(messageId, e.target) }, "翻译成中文"),
+        messageId === state.sparkMessageId &&
+          el("button", { type: "button", class: "link-button not-interested", onclick: (e) => notInterested(e.target) }, "Not interested → another")),
   );
   return article;
 }
@@ -479,6 +481,9 @@ async function openThread(id) {
   els.title.textContent = thread.title || "Untitled";
   els.depth.value = thread.depth;
   cards.clear();
+  // The first card of a Surprise me thread gets the "Not interested" button.
+  state.sparkMessageId =
+    thread.messages[0]?.action === "spark" ? thread.messages.find((m) => m.role === "assistant")?.id : null;
   els.messages.replaceChildren(...thread.messages.map(renderMessage));
   scrollToBottom();
   setStreaming(false);
@@ -489,6 +494,7 @@ async function openThread(id) {
 
 function newThread() {
   state.threadId = null;
+  state.sparkMessageId = null;
   history.replaceState(null, "", "#");
   els.title.textContent = "New exploration";
   els.depth.value = "explain";
@@ -555,6 +561,7 @@ async function sendTurn(body) {
       else if (name === "card") replace(renderCard(data));
       else if (name === "done") {
         finished = true;
+        if (body.action === "spark") state.sparkMessageId = data.message_id;
         replace(renderCard(data.card, { final: true, messageId: data.message_id, conceptId: data.concept_id }));
         setStreaming(false); // a title may still follow; the card is usable now
         if (state.abort === abort) state.abort = null; // Stop no longer applies to this turn
@@ -617,6 +624,20 @@ async function surprise() {
     angle: pick.angle,
     depth: els.depth.value,
   });
+}
+
+// Tells Surprise me to show this kind of pick less, then picks another.
+async function notInterested(button) {
+  if (state.streaming) return;
+  button.disabled = true;
+  try {
+    await api(`/threads/${state.threadId}/not-interested`, { method: "POST" });
+  } catch (e) {
+    button.disabled = false;
+    button.textContent = `Couldn't save (${e.message}). Retry`;
+    return;
+  }
+  surprise();
 }
 
 // One banner for setup problems and budget warnings; refreshed on load and after every turn.

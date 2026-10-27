@@ -36,3 +36,14 @@ async def spark(
         raise HTTPException(502, "Couldn't pick a concept right now. Try again.") from e
     except (KeyError, ValueError) as e:
         raise HTTPException(502, "Couldn't pick a concept right now. Try again.") from e
+
+
+@router.post("/threads/{thread_id}/not-interested", status_code=204)
+async def not_interested(
+    thread_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user_id),
+):
+    """Mark a Surprise me pick as unwanted, so its area and angle come up less."""
+    if not await spark_service.not_interested(session, user_id, thread_id):
+        raise HTTPException(404, "This thread didn't start from Surprise me.")

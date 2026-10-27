@@ -83,7 +83,8 @@ Polished UI, graph view, Obsidian export (P1) · AI-suggested links, embeddings,
 | Action | Effect | Interest event |
 |---|---|---|
 | Type a concept / question | New thread, or next turn in the current one | `ask` |
-| Surprise me | New thread on a random concept (§5.4) | `spark_shown` |
+| Surprise me | New thread on a random concept (§5.4) | `spark_shown`; the previous spark gets `skip` if untouched |
+| Not interested → another | Marks this spark unwanted, then Surprise me again | `skip` (`how: not_interested`) |
 | Deeper | `depth += 1` on the current concept | `dive` |
 | Related: X | Same thread, focus moves to X | `branch` |
 | Something else | Same thread, an unrelated concept | `switch` |
@@ -210,6 +211,12 @@ Each pick combines two independent random choices:
 (e.g. day-in-the-life: the diagram is the shift's timeline). Area and angle are logged so both rotate. Questions
 must name the subject, and myths or fringe claims are asked about as beliefs, never as facts.
 
+**Skips steer the picks.** A spark counts as skipped when you ask for another one without having engaged with it
+(no ask, dive, branch, switch, link or takeaway on its thread or concept), or when you press **Not interested →
+another** on its card (a stronger signal). Each area and angle then gets a factor
+`(1 + sparks kept) / (1 + skip penalty)` over the last 200 sparks (implicit skip 1, Not interested 2), clamped to
+0.2–2, so a skipped kind of pick comes up less and a kept one more, but nothing is ruled out.
+
 Measured on 30 real picks (2026-10-27): 9 of 11 angles and 21 areas appeared; 7 of 30 were "how it works".
 
 ---
@@ -233,7 +240,8 @@ Measured on 30 real picks (2026-10-27): 9 of 11 angles and 21 areas appeared; 7 
 | `GET` | `/api/takeaways` | `?concept_id=&kind=` | takeaways |
 | `POST` | `/api/takeaways` | `{body, kind, concept_ids[], message_id?}` | takeaway |
 | `PATCH` / `DELETE` | `/api/takeaways/{id}` | `{body?, kind?, concept_ids?}` | takeaway / 204 |
-| `POST` | `/api/spark` | — | `{concept, teaser, topic_area}` for Surprise me |
+| `POST` | `/api/spark` | — | `{concept, question, teaser, topic_area, angle}` for Surprise me |
+| `POST` | `/api/threads/{id}/not-interested` | — | 204; 404 if the thread didn't start from a spark |
 | `GET` | `/api/health` | — | db + api-key status |
 
 ### 6.2 SSE protocol
