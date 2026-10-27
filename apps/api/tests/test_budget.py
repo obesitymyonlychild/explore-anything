@@ -158,7 +158,7 @@ async def test_zero_means_no_limit(session, monkeypatch):
 
 
 async def test_spark_is_recorded(client, session):
-    light = FakeLightLLM(replies=[{"concept": "Baroreflex", "teaser": "t"}])
+    light = FakeLightLLM(replies=[{"concept": "Baroreflex", "question": "q", "teaser": "t"}])
     app.dependency_overrides[get_light_llm] = lambda: light
     try:
         assert (await client.post("/api/spark")).status_code == 200

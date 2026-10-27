@@ -1,0 +1,14 @@
+# Angles for "Surprise me": what kind of question to ask about a topic area.
+# key | weight | what the card is about | example question
+# Weights are relative. "how-it-works" is deliberately a small share so picks don't all become mechanisms.
+how-it-works | 2 | the mechanism behind a device, process or natural phenomenon | How do noise-cancelling headphones cancel sound?
+day-in-the-life | 2 | what one specific job or role is really like day to day: the tasks, tools, pressures and pay | What does an air traffic controller's shift actually look like?
+behind-the-scenes | 1.5 | the hidden system or people that deliver something everyday | How does a supermarket restock its shelves overnight?
+why-it-is-so | 1.5 | the history or reason something ended up the way it is | Why are keyboards laid out QWERTY?
+person-and-turning-point | 1 | one person, and the moment or decision that made them matter | What did Florence Nightingale's charts change?
+place | 1 | one specific place and what makes it work or matter | How does Venice survive on water?
+custom-and-culture | 1 | a tradition, ritual or social norm, where it comes from and what it does | Why does tipping exist in the US but not in Japan?
+money-and-business | 1 | how an industry or business actually makes (or loses) money | How does a free mobile game make money?
+craft-and-skill | 1 | how experts in a craft or skill do what they do, and how they learn it | How does a sommelier identify a wine blind?
+open-question | 0.75 | a live debate or unsolved problem, and the main positions | Why do we need to sleep at all?
+by-the-numbers | 0.75 | a surprising quantity, scale or cost, and what's behind it | How much water goes into one cotton T-shirt?

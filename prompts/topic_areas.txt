@@ -1,45 +1,81 @@
 # Topic areas for "Surprise me". One per line; lines starting with # are ignored.
+# Each pick combines an area with an angle from spark_angles.txt, so keep areas broad and varied:
+# science and engineering, but also work, people, culture, places and money.
+
+# Science and nature
 Thermodynamics and heat
-Fluid dynamics and aerodynamics
+Fluid dynamics and flight
 Materials science
-Structural engineering
-Electrical power and grids
-Electronics and semiconductors
-Telecommunications and networking
 Optics and light
 Acoustics and sound
 Astronomy and space flight
-Geology and plate tectonics
+Geology and volcanoes
 Oceans and weather
 Climate and atmosphere
 Chemistry of everyday materials
-Food science and cooking
-Agriculture and soil
-Microbiology
+Microbiology and germs
 Immunology
-Neuroscience
-Human physiology
-Pharmacology and drug design
+Neuroscience and the brain
+Human body and health
 Genetics and evolution
-Ecology and animal behaviour
-Botany and plants
-Manufacturing and factories
-Shipping and logistics
-Transportation and vehicles
-Architecture and buildings
+Animal behaviour
+Plants and forests
+
+# Technology and infrastructure
+Electricity and power grids
+Electronics and computers
+The internet and telecoms
+Cryptography and security
+Energy storage and batteries
 Water supply and sanitation
+Transport and vehicles
+Shipping and ports
+Architecture and buildings
+Construction and civil engineering
+Manufacturing and factories
+
+# Work and institutions
+Medicine and hospitals
+Emergency services
+Aviation and airports
+Restaurants and kitchens
+Retail and supermarkets
+Farming and fishing
+Mining and raw materials
+Law, courts and police
+Government and elections
+Military and diplomacy
+Schools and education
+Journalism and media
+Science labs and research
+
+# Money and markets
 Money, banking and payments
 Markets and pricing
 Insurance and risk
-Law and institutions
-Urban planning
+Startups and big companies
+Advertising and marketing
+Tourism and hotels
+
+# Culture and everyday life
+Food and cooking
+Festivals and holidays
+Religion and mythology
+Languages and writing systems
+Family and social customs
+Sports and games
+Music and instruments
+Film and TV production
+Art, museums and design
+Fashion and textiles
+Video games
+Social media and online life
+Psychology and behaviour
+
+# Places and the past
+Cities and urban life
+Remote and extreme places
+Ancient civilisations
 History of technology
-Cartography and navigation
-Timekeeping and calendars
-Typography and printing
-Music theory and instruments
-Sports science
-Cryptography and security
-Linguistics and writing systems
-Textiles and clothing
-Energy storage and batteries
+Maps and navigation
+Time and calendars

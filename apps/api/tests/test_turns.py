@@ -244,18 +244,38 @@ async def test_title_failure_keeps_the_provisional_title(client, session, llm, l
     assert (await session.get(Thread, uuid.UUID(tid))).title == "Air conditioning"
 
 
-async def test_spark_turn_logs_topic_area(client, session, llm):
-    llm.scripts.append(Script.of(card("Thermal expansion joint")))
+async def test_spark_turn_logs_topic_area_and_angle(client, session, llm):
+    llm.scripts.append(Script.of(card("Air traffic controller")))
     tid = await new_thread(client)
-    await turn(client, tid, action="spark", concept="Thermal expansion joint", topic_area="Structural engineering")
+    question = "What does an air traffic controller's shift actually look like?"
+    await turn(
+        client,
+        tid,
+        action="spark",
+        concept="Air traffic controller",
+        text=question,
+        topic_area="Aviation and airports",
+        angle="day-in-the-life",
+    )
 
     user_msg = (await messages(session, tid))[0]
-    assert user_msg.content == "Surprise me: Thermal expansion joint"
+    assert user_msg.content == f"Surprise me: {question}"
     prompt = user_msg.api_content[0]["text"]
-    assert '<turn action="spark" depth="explain" focus="Thermal expansion joint"/>' in prompt
-    assert "<message>\nSurprise me.\n</message>" in prompt
+    assert '<turn action="spark" depth="explain" focus="Air traffic controller" angle="day-in-the-life"/>' in prompt
+    assert f"<message>\n{question}\n</message>" in prompt
     event = (await session.scalars(select(InterestEvent))).one()
-    assert (event.action, event.meta["topic_area"]) == ("spark_shown", "Structural engineering")
+    assert (event.action, event.meta["topic_area"], event.meta["angle"]) == (
+        "spark_shown",
+        "Aviation and airports",
+        "day-in-the-life",
+    )
+
+
+async def test_angle_only_applies_to_spark_turns(client, session, llm):
+    llm.scripts.append(Script.of(card()))
+    tid = await new_thread(client)
+    await turn(client, tid, action="ask", text="hi", angle="day-in-the-life")
+    assert "angle=" not in (await messages(session, tid))[0].api_content[0]["text"]
 
 
 async def test_auth_error_has_a_clear_message(client, llm):

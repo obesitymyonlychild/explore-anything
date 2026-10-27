@@ -189,6 +189,7 @@ class TurnRequest(BaseModel):
     depth: Depth | None = None  # explicit depth for this and later turns
     takeaway_id: uuid.UUID | None = None  # ask: a question-type takeaway to send
     topic_area: str | None = None  # spark: the area it was picked from (logged, so areas rotate)
+    angle: str | None = None  # spark: the kind of question (how-it-works, day-in-the-life, …)
 
 
 class UsageOut(BaseModel):
@@ -204,5 +205,7 @@ class UsageOut(BaseModel):
 
 class SparkOut(BaseModel):
     concept: str
+    question: str  # sent back as the spark turn's text
     teaser: str
     topic_area: str
+    angle: str

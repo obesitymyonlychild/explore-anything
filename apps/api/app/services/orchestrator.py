@@ -104,7 +104,8 @@ async def prepare_turn(session: AsyncSession, user_id: uuid.UUID, thread: Thread
 
     notes: Notes | None = await load_notes(session, user_id, focus) if focus else None
     display = text or DEFAULT_TEXT.get(req.action) or f"Tell me about {target}."
-    composed = user_turn(req.action, depth, focus_name, display, notes)
+    angle = req.angle if req.action == "spark" else None
+    composed = user_turn(req.action, depth, focus_name, display, notes, angle=angle)
 
     # A trailing user turn has no reply (its stream failed): this turn replaces it.
     last = await session.scalar(select(Message).where(Message.thread_id == thread.id).order_by(Message.seq.desc()))
@@ -114,13 +115,13 @@ async def prepare_turn(session: AsyncSession, user_id: uuid.UUID, thread: Thread
     else:
         last_seq = last.seq if last else 0
 
-    label = {"branch": f"Related: {target}", "spark": f"Surprise me: {target}"}.get(req.action, display)
+    label = {"branch": f"Related: {target}", "spark": f"Surprise me: {text or target}"}.get(req.action, display)
     user_msg = Message(
         thread_id=thread.id,
         seq=last_seq + 1,
         role="user",
         action=req.action,
-        content=text or label,
+        content=label if req.action == "spark" else text or label,
         api_content=[{"type": "text", "text": composed}],
     )
     session.add(user_msg)
@@ -134,6 +135,7 @@ async def prepare_turn(session: AsyncSession, user_id: uuid.UUID, thread: Thread
             "depth": depth,
             **({"concept": target} if target else {}),
             **({"topic_area": req.topic_area} if req.action == "spark" and req.topic_area else {}),
+            **({"angle": angle} if angle else {}),
         },
     )
     thread.depth = depth

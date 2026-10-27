@@ -386,7 +386,7 @@ const DEFAULT_LABEL = {
   dive: () => "Go deeper.",
   branch: (b) => `Related: ${b.concept}`,
   switch: () => "Show me something completely different.",
-  spark: (b) => `Surprise me: ${b.concept}`,
+  spark: (b) => `Surprise me: ${b.text || b.concept}`,
 };
 
 async function sendTurn(body) {
@@ -408,7 +408,7 @@ async function sendTurn(body) {
   }
 
   // Optimistic user bubble; the server stores the same text.
-  const label = body.text || DEFAULT_LABEL[body.action](body);
+  const label = body.action === "spark" ? DEFAULT_LABEL.spark(body) : body.text || DEFAULT_LABEL[body.action](body);
   els.messages.append(el("div", { class: "user-msg" }, label));
   let slot = el("div", { class: "status" }, "Starting");
   els.messages.append(slot);
@@ -483,7 +483,14 @@ async function surprise() {
   }
   slot.remove();
   setStreaming(false);
-  sendTurn({ action: "spark", concept: pick.concept, topic_area: pick.topic_area, depth: els.depth.value });
+  sendTurn({
+    action: "spark",
+    concept: pick.concept,
+    text: pick.question,
+    topic_area: pick.topic_area,
+    angle: pick.angle,
+    depth: els.depth.value,
+  });
 }
 
 // One banner for setup problems and budget warnings; refreshed on load and after every turn.

@@ -35,10 +35,14 @@ def system_blocks() -> list[dict[str, Any]]:
     ]
 
 
-def user_turn(action: str, depth: str, focus: str | None, text: str, notes: Notes | None = None) -> str:
+def user_turn(
+    action: str, depth: str, focus: str | None, text: str, notes: Notes | None = None, angle: str | None = None
+) -> str:
     attrs = f"action={quoteattr(action)} depth={quoteattr(depth)}"
     if focus:
         attrs += f" focus={quoteattr(focus)}"
+    if angle:
+        attrs += f" angle={quoteattr(angle)}"
     parts = [f"<turn {attrs}/>"]
 
     if notes:

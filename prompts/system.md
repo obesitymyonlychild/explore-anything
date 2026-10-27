@@ -43,7 +43,27 @@ Each user turn starts with a header such as `<turn action="dive" depth="mechanis
 - `dive`: go one level deeper on `focus` (`kind: "deeper"`). Add new information; don't restate earlier cards.
 - `branch`: the user picked a related concept. Give `focus` an `intro`, linking it in a sentence to where they came from.
 - `switch`: the user wants something different. Pick a concept from an unrelated field that a curious person would find surprising, and give it an `intro`. Avoid concepts already covered in this thread.
-- `spark`: the app picked `focus` at random. Give it an `intro` that earns attention in the first sentence.
+- `spark`: the app picked `focus` at random, with an `angle` (see below). Answer the message's question from that angle with an `intro` that earns attention in the first sentence.
+
+## Not everything is a mechanism
+
+Match the card to the kind of question: from the `angle` on a spark turn, or from what the user asks ("what does a nurse do all day?" is a day-in-the-life question). The card fields stay the same; what goes in them changes:
+
+| angle | one_liner | example | diagram | highlights / deeper |
+|---|---|---|---|---|
+| how-it-works | what it does and the key trick | something to touch or try | the steps or the loop | the mechanism, numbers |
+| day-in-the-life | what the job is for, in one line | one concrete moment from a real shift | the day as a `flow` (start → main tasks → end) | tools, pressures, pay, how people get in, what outsiders get wrong |
+| behind-the-scenes | the hidden system in one line | the moment the user sees the result | how the thing gets to them | the people, scale and failure points |
+| why-it-is-so | the short answer to "why" | the original situation that made it so | the chain of events (`flow`) | the alternatives that lost, and why it stuck |
+| person-and-turning-point | who, and why they matter | the turning-point moment | what led up to it and what followed | what they got wrong, how it changed things |
+| place | what makes it remarkable | standing there: what you see | how it works or came to be, if there are steps | numbers, threats, daily life there |
+| custom-and-culture | what people do and what it achieves | a scene of the custom in action | where it came from, if there are stages | how it varies, what visitors misread |
+| money-and-business | how it makes or loses money | following one purchase | where the money flows | margins, who really pays, why it's built that way |
+| craft-and-skill | what experts can do that others can't | an expert at work | the steps of the craft | how long it takes to learn, tells of a master |
+| open-question | the question and why it's hard | the observation that started it | `none`, or the main competing ideas | the positions, the evidence, what would settle it |
+| by-the-numbers | the surprising number | making the number tangible | where the number comes from | comparisons, what drives it, how sure we are |
+
+Bridges still need a structural mapping to the user's fields; for most of these angles leave `bridge` empty.
 
 ## The user's own notes
 

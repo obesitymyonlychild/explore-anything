@@ -189,8 +189,21 @@ messages:
 ### 5.3 Streaming a structured card
 The API streams the JSON as text. The backend parses it as partial JSON (`jiter`, `partial_mode="trailing-strings"`) at most every ~50 ms and sends the partial card as an SSE `card` event. At the end it validates the card with Pydantic, registers the concept, stores the message and sends `done`.
 
-### 5.4 Surprise me (MVP)
-`POST /api/spark`: random topic area from `prompts/topic_areas.txt` (~45 areas, excluding the last 10 used) → Haiku picks one intriguing concept you haven't met yet (your 300 most recent concept names are passed in) and returns `{concept, teaser, topic_area}` → the page starts a new thread with `action=spark`, which logs the topic area so areas rotate.
+### 5.4 Surprise me
+Each pick combines two independent random choices:
+- **Area** (what it's about): ~60 broad areas in `prompts/topic_areas.txt`: science and technology, but also
+  work and institutions, money, culture and everyday life, places and the past. The last 10 used are skipped.
+- **Angle** (what kind of question), weighted, from `prompts/spark_angles.txt`: how it works, a day in the life,
+  behind the scenes, why it is so, a person and their turning point, a place, a custom, how it makes money,
+  a craft, an open question, by the numbers. "How it works" is ~15% of the weight; the last 3 angles used are skipped.
+
+`POST /api/spark` sends both to Haiku, which picks a subject you haven't met and frames a question
+(`{concept, question, teaser, topic_area, angle}`, about $0.0002). The page starts a thread with `action=spark`,
+`text=question` and the angle; the turn header carries `angle="…"`, and the card prompt adapts the fields to it
+(e.g. day-in-the-life: the diagram is the shift's timeline). Area and angle are logged so both rotate. Questions
+must name the subject, and myths or fringe claims are asked about as beliefs, never as facts.
+
+Measured on 30 real picks (2026-10-27): 9 of 11 angles and 21 areas appeared; 7 of 30 were "how it works".
 
 ---
 
