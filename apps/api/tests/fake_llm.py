@@ -54,6 +54,16 @@ class Script:
         return cls(json.dumps(c), **kw)
 
 
+def _mark(value):
+    if isinstance(value, str):
+        return f"中:{value}" if value else ""
+    if isinstance(value, list):
+        return [_mark(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _mark(v) for k, v in value.items()}
+    return value
+
+
 @dataclass
 class FakeLightLLM:
     """Replies to light-model calls: a queue of dicts (or exceptions), else a default title."""
@@ -61,12 +71,24 @@ class FakeLightLLM:
     replies: list[Any] = field(default_factory=list)
     calls: list[dict[str, Any]] = field(default_factory=list)
 
-    async def json(self, system, prompt, schema):
+    async def json(self, system, prompt, schema, max_tokens=4000):
         self.calls.append({"system": system, "prompt": prompt, "schema": schema})
-        reply = self.replies.pop(0) if self.replies else {"title": "Generated title"}
+        if self.replies:
+            reply = self.replies.pop(0)
+        elif "branch_labels" in schema["properties"]:  # a card translation: echo the card, marked
+            reply = _mark(json.loads(prompt))
+        else:
+            reply = {"title": "Generated title"}
         if isinstance(reply, Exception):
             raise reply
         return LightResult(reply, "claude-haiku-5-5", {"input_tokens": 1000, "output_tokens": 100})
+
+    async def stream_json(self, system, prompt, schema, max_tokens=4000):
+        result = await self.json(system, prompt, schema, max_tokens)
+        first_key = next(iter(result.data), None)
+        if first_key is not None:
+            yield {first_key: result.data[first_key]}  # one partial, then the whole reply
+        yield result
 
 
 @dataclass

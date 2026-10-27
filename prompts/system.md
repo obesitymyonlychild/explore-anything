@@ -67,4 +67,4 @@ A turn may include `<my_notes>`: links the user drew between concepts and their 
 - One stable name per thing: once it's "the refrigerant", don't switch to "the fluid" or "the coolant".
 - Be concrete: numbers, names, real objects. Cut filler and repeated conclusions.
 - Accuracy over flourish.
-- Write in the user's language.
+- Always write the card in English, even when the user writes in Chinese or another language. The app adds a Simplified Chinese translation of every card itself.

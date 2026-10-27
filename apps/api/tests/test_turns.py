@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import select
 
 from app.models import Concept, InterestEvent, Message, Thread
+from app.settings import get_settings
 from tests.fake_llm import THINKING, Script, card
 
 
@@ -45,7 +46,7 @@ async def test_ask_streams_a_card_and_stores_everything(client, session, llm):
 
     events = await turn(client, tid, action="ask", text="how does air conditioning work?")
     names = [e for e, _ in events]
-    assert names[:2] == ["meta", "status"] and names[-2:] == ["done", "title"]
+    assert names[:2] == ["meta", "status"] and "done" in names and names[-1] in ("translation", "title")
     assert events[1][1] == {"state": "thinking"}
     partials = [d for e, d in events if e == "card"]
     assert len(partials) > 3
@@ -67,7 +68,7 @@ async def test_ask_streams_a_card_and_stores_everything(client, session, llm):
     user, assistant = await messages(session, tid)
     assert (user.role, user.action, user.content) == ("user", "ask", "how does air conditioning work?")
     assert '<turn action="ask" depth="explain"/>' in user.api_content[0]["text"]
-    assert assistant.card == finished["card"]
+    assert {k: v for k, v in assistant.card.items() if k != "zh"} == finished["card"]  # zh arrives after done
     assert assistant.api_content[0] == THINKING  # stored verbatim for replay
     assert str(assistant.id) == finished["message_id"]
 
@@ -224,15 +225,17 @@ async def test_title_only_after_the_first_card(client, session, llm, light):
     llm.scripts += [Script.of(card()), Script.of(card(kind="deeper"))]
     tid = await new_thread(client)
     first = await turn(client, tid, action="ask", text="how does AC work?")
-    assert first[-1] == ("title", {"title": "Generated title"})
-    assert "how does AC work?" in light.calls[0]["prompt"]
+    assert ("title", {"title": "Generated title"}) in first
+    title_calls = [c for c in light.calls if "title" in c["schema"]["properties"]]
+    assert "how does AC work?" in title_calls[0]["prompt"]
 
     second = await turn(client, tid, action="dive")
-    assert [e for e, _ in second][-1] == "done"
-    assert len(light.calls) == 1
+    assert "title" not in [e for e, _ in second]
+    assert len([c for c in light.calls if "title" in c["schema"]["properties"]]) == 1
 
 
-async def test_title_failure_keeps_the_provisional_title(client, session, llm, light):
+async def test_title_failure_keeps_the_provisional_title(client, session, llm, light, monkeypatch):
+    monkeypatch.setattr(get_settings(), "translate_cards", False)  # so the one light call is the title
     light.replies.append(RuntimeError("haiku down"))
     llm.scripts.append(Script.of(card()))
     tid = await new_thread(client)

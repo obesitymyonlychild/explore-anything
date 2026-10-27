@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     chat_max_tokens: int = 16000
     chat_fallbacks: bool = True  # server-side refusal fallback (fallbacks="default")
     light_model: str = "claude-haiku-5-5"
+    translate_cards: bool = True  # Simplified Chinese for every card, by the light model (~$0.001/card)
 
     # Spend limits in USD for the app's own calls (0 = no limit). Evals use run_cards.py --max-cost.
     daily_budget_usd: float = 2.0

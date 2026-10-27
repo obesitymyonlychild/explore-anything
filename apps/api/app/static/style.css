@@ -34,7 +34,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font: 15px/1.55 system-ui, -apple-system, sans-serif;
+  font: 15px/1.55 system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
 }
 
 button, select, textarea { font: inherit; color: inherit; }
@@ -94,6 +94,19 @@ button.primary { background: var(--accent); color: var(--accent-fg); border-colo
 }
 .thread-header h1 { font-size: 16px; margin: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .depth { color: var(--muted); font-size: 13px; }
+.lang { display: flex; }
+.lang button { border-radius: 0; padding: 2px 8px; font-size: 13px; }
+.lang button:first-child { border-radius: 6px 0 0 6px; }
+.lang button:last-child { border-radius: 0 6px 6px 0; }
+.lang button + button { margin-left: -1px; }
+.lang button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+/* Chinese under the English in "Both"; same text colour, slightly smaller */
+.zh { display: block; font-size: 0.94em; margin-top: 2px; }
+.card .one-liner .zh { margin-top: 4px; }
+.body-zh { border-left: 3px solid var(--border); padding-left: 10px; margin-top: 8px; }
+.card-head .zh { display: inline; margin-left: 8px; font-size: 1em; text-transform: none; letter-spacing: 0; }
+.card-actions { display: flex; gap: 14px; }
 .depth select { margin-left: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; }
 
 .messages { flex: 1; overflow-y: auto; padding: 16px; }

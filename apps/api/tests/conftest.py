@@ -97,5 +97,6 @@ def llm(monkeypatch, light):
     fake = FakeLLM()
     app.dependency_overrides[get_llm] = lambda: fake
     monkeypatch.setattr(orchestrator, "EMIT_INTERVAL", 0)  # emit every partial
+    monkeypatch.setattr(orchestrator, "TRANSLATION_EMIT_INTERVAL", 0)
     yield fake
     app.dependency_overrides.pop(get_llm, None)

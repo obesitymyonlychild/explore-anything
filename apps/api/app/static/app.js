@@ -25,6 +25,7 @@ const state = {
   threadId: null,
   streaming: false,
   lastTurn: null, // last turn request body, for Retry
+  lang: "both", // set from localStorage at startup
   abort: null, // AbortController of the running turn
   panelConceptId: null, // concept shown in the right panel
   threadTitles: {}, // thread id -> title, for "cards about this concept"
@@ -171,36 +172,96 @@ const BRANCH_TURN = {
   switch: () => ({ action: "switch" }),
 };
 
+// Language: "en", "zh" or "both". Cards are written in English; card.zh holds the Chinese
+// (same fields, lists paired by index). Remembered per browser.
+const LANGS = ["en", "zh", "both"];
+function loadLang() {
+  try {
+    const v = localStorage.getItem("lang");
+    return LANGS.includes(v) ? v : "both";
+  } catch {
+    return "both";
+  }
+}
+
+// One text field in the chosen language(s). In "both", the Chinese follows on its own line.
+function bi(en, zh) {
+  if (!en && !zh) return [];
+  if (state.lang === "en" || !zh) return [en];
+  if (state.lang === "zh") return [el("span", { class: "zh-only", lang: "zh-Hans" }, zh)];
+  return [en, el("span", { class: "zh", lang: "zh-Hans" }, zh)];
+}
+
+const LABELS = {
+  example: { en: "Example: ", zh: "例子：" },
+  bridge: { en: "For you: ", zh: "联系你的领域：" },
+  back: { en: "back to", zh: "回到" },
+};
+const label = (key) => (state.lang === "zh" ? LABELS[key].zh : LABELS[key].en);
+
+// Final cards are registered by message id, so a late translation or a language switch can
+// re-render them in place.
+const cards = new Map(); // messageId -> { card, conceptId }
+
+function rerenderCard(messageId) {
+  const entry = cards.get(messageId);
+  const node = document.querySelector(`article.card[data-message-id="${messageId}"]`);
+  if (entry && node) node.replaceWith(renderCard(entry.card, { final: true, messageId, conceptId: entry.conceptId }));
+}
+
+function rerenderAllCards() {
+  for (const id of cards.keys()) rerenderCard(id);
+}
+
+async function translateCard(messageId, button) {
+  button.disabled = true;
+  button.textContent = "翻译中…";
+  try {
+    const { zh } = await api(`/messages/${messageId}/translate`, { method: "POST" });
+    cards.get(messageId).card.zh = zh;
+    rerenderCard(messageId);
+  } catch (e) {
+    button.disabled = false;
+    button.textContent = `翻译失败，重试 (${e.message})`;
+  }
+}
+
 // Renders a (possibly partial) card. Fields that haven't streamed in yet are skipped.
 // Final cards carry their message and concept ids, which enable the concept link and "+ takeaway".
 function renderCard(card, { final = false, messageId = null, conceptId = null } = {}) {
+  if (final && messageId) cards.set(messageId, { card, conceptId });
+  const zh = card.zh || {};
   const tag = [card.kind, card.depth].filter(Boolean).join(" · ");
-  const highlights = (card.highlights || []).filter(Boolean);
+  const highlights = (card.highlights || []).map((h, i) => [h, (zh.highlights || [])[i]]).filter(([h]) => h);
   const branches = final ? card.branches || [] : [];
-  const article = el("article", { class: "card" });
+  const needsTranslation = final && messageId && state.lang !== "en" && !card.zh;
+  const article = el("article", { class: "card", ...(messageId ? { "data-message-id": messageId } : {}) });
   append(article,
     el("div", { class: "card-head" },
       el("span", { class: "card-concept" },
         conceptId
-          ? el("a", { href: "#", onclick: (e) => { e.preventDefault(); showConcept(conceptId); } }, card.concept)
+          ? el("a", { href: "#", onclick: (e) => { e.preventDefault(); showConcept(conceptId); } }, ...bi(card.concept, zh.concept))
           : card.concept || ""),
       el("span", { class: "card-tag" }, tag)),
-    card.one_liner && el("p", { class: "one-liner" }, card.one_liner),
-    card.example && el("p", {}, el("span", { class: "label" }, "Example: "), card.example),
-    renderDiagram(card.diagram),
-    highlights.length > 0 && el("ul", { class: "highlights" }, highlights.map((h) => el("li", {}, h))),
-    card.bridge && el("p", { class: "bridge" }, el("span", { class: "label" }, "For you: "), card.bridge),
-    card.body_md && el("div", { class: "body" }, html(renderMd(card.body_md))),
-    renderImages(card.images),
+    card.one_liner && el("p", { class: "one-liner" }, ...bi(card.one_liner, zh.one_liner)),
+    card.example && el("p", {}, el("span", { class: "label" }, label("example")), ...bi(card.example, zh.example)),
+    renderDiagram(card.diagram, zh),
+    highlights.length > 0 && el("ul", { class: "highlights" }, highlights.map(([h, hz]) => el("li", {}, ...bi(h, hz)))),
+    card.bridge && el("p", { class: "bridge" }, el("span", { class: "label" }, label("bridge")), ...bi(card.bridge, zh.bridge)),
+    card.body_md && renderBody(card.body_md, zh.body_md),
+    renderImages(card.images, zh.captions),
     branches.length > 0 &&
       el("div", { class: "branches" },
-        branches.map((b) =>
-          el("button", {
+        branches.map((b, i) => {
+          const zhLabel = (zh.branch_labels || [])[i];
+          const text = state.lang === "zh" && zhLabel ? zhLabel : state.lang === "both" && zhLabel ? `${b.label} · ${zhLabel}` : b.label;
+          return el("button", {
             type: "button",
             class: "branch",
             "data-kind": b.kind,
             onclick: () => sendTurn(BRANCH_TURN[b.kind](b)),
-          }, b.kind === "related" ? `→ ${b.label}` : b.label))),
+          }, b.kind === "related" ? `→ ${text}` : text);
+        })),
     final && conceptId &&
       el("div", { class: "card-actions" },
         el("button", {
@@ -210,36 +271,47 @@ function renderCard(card, { final = false, messageId = null, conceptId = null } 
             e.target.parentElement.remove();
             article.append(takeawayForm({ conceptId, messageId, onDone: () => showConcept(conceptId) }));
           },
-        }, "+ takeaway")),
+        }, "+ takeaway"),
+        needsTranslation &&
+          el("button", { type: "button", class: "link-button translate", onclick: (e) => translateCard(messageId, e.target) }, "翻译成中文")),
   );
   return article;
 }
 
+function renderBody(md, zhMd) {
+  if (state.lang === "en" || !zhMd) return el("div", { class: "body" }, html(renderMd(md)));
+  const zhBlock = el("div", { class: "body-zh", lang: "zh-Hans" }, html(renderMd(zhMd)));
+  if (state.lang === "zh") return el("div", { class: "body" }, zhBlock);
+  return el("div", { class: "body" }, html(renderMd(md)), zhBlock);
+}
+
 // A flow (a → b → c) or a cycle (… and back to the start). Steps stream in one by one.
-function renderDiagram(d) {
+function renderDiagram(d, zh = {}) {
   const steps = (d?.steps || []).filter((s) => s && s.label);
   if (!d || d.kind === "none" || steps.length < 2) return null;
+  const zhSteps = zh.diagram_steps || [];
+  const firstLabel = state.lang === "zh" && zhSteps[0]?.label ? zhSteps[0].label : steps[0].label;
   return el("figure", { class: `diagram diagram-${d.kind}` },
-    d.title && el("figcaption", {}, d.title),
+    d.title && el("figcaption", {}, ...bi(d.title, zh.diagram_title)),
     el("ol", {},
       steps.map((s, i) =>
         el("li", {},
           el("span", { class: "step-n" }, String(i + 1)),
-          el("strong", {}, s.label),
-          s.detail && el("span", { class: "step-detail" }, s.detail)))),
-    d.kind === "cycle" && el("p", { class: "cycle-back" }, `↻ back to ${steps[0].label}`));
+          el("strong", {}, ...bi(s.label, zhSteps[i]?.label)),
+          s.detail && el("span", { class: "step-detail" }, ...bi(s.detail, zhSteps[i]?.detail))))),
+    d.kind === "cycle" && el("p", { class: "cycle-back" }, `↻ ${label("back")} ${firstLabel}`));
 }
 
 // Images the server resolved from Wikipedia (final cards only).
-function renderImages(images) {
+function renderImages(images, zhCaptions = []) {
   if (!images || images.length === 0) return null;
   return el("div", { class: "pictures" },
-    images.map((img) =>
+    images.map((img, i) =>
       el("figure", {},
         el("a", { href: img.page_url, target: "_blank", rel: "noopener noreferrer" },
           el("img", { src: img.thumb_url, alt: img.caption || img.title, loading: "lazy" })),
         el("figcaption", {},
-          img.caption, " ",
+          ...bi(img.caption, zhCaptions[i]), " ",
           el("a", { href: img.page_url, target: "_blank", rel: "noopener noreferrer", class: "source" }, `Wikipedia: ${img.title}`)))));
 }
 
@@ -280,6 +352,7 @@ async function openThread(id) {
   const thread = await api(`/threads/${id}`);
   els.title.textContent = thread.title || "Untitled";
   els.depth.value = thread.depth;
+  cards.clear();
   els.messages.replaceChildren(...thread.messages.map(renderMessage));
   scrollToBottom();
   setStreaming(false);
@@ -293,6 +366,7 @@ function newThread() {
   history.replaceState(null, "", "#");
   els.title.textContent = "New exploration";
   els.depth.value = "explain";
+  cards.clear();
   els.messages.replaceChildren(els.empty);
   loadThreads();
   clearPanel();
@@ -362,6 +436,12 @@ async function sendTurn(body) {
         showConcept(data.concept_id);
         loadConcepts();
         loadThreads();
+      } else if (name === "translation") {
+        const entry = cards.get(data.message_id);
+        if (entry) {
+          entry.card.zh = data.zh;
+          rerenderCard(data.message_id);
+        }
       } else if (name === "title") {
         els.title.textContent = data.title;
         loadThreads();
@@ -634,11 +714,29 @@ els.depth.addEventListener("change", async () => {
   await api(`/threads/${state.threadId}`, { method: "PATCH", body: { depth: els.depth.value } });
 });
 
+function setLangButtons() {
+  document.querySelectorAll("#lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)));
+}
+
+document.querySelectorAll("#lang button").forEach((b) =>
+  b.addEventListener("click", () => {
+    state.lang = b.dataset.lang;
+    try {
+      localStorage.setItem("lang", state.lang);
+    } catch {
+      /* private window: the choice just isn't remembered */
+    }
+    setLangButtons();
+    rerenderAllCards();
+  }));
+
 els.newThread.addEventListener("click", newThread);
 els.surprise.addEventListener("click", surprise);
 els.stop.addEventListener("click", () => state.abort?.abort());
 window.addEventListener("hashchange", route);
 
+state.lang = loadLang();
+setLangButtons();
 checkHealth();
 loadConcepts();
 route();

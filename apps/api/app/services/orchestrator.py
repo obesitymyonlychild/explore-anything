@@ -5,6 +5,7 @@ is left without a reply and is replaced by the next turn (the retry), so history
 alternates user/assistant and earlier turns are never edited.
 """
 
+import asyncio
 import json
 import logging
 import time
@@ -23,18 +24,20 @@ from app.db import SessionLocal
 from app.deps import get_owned
 from app.llm import errors
 from app.llm.client import CardLLM, Final, TextDelta, ThinkingStarted
-from app.llm.light import LightLLM
+from app.llm.light import LightLLM, LightLLMError
 from app.llm.partial import PartialJSON
 from app.llm.prompt import Notes, system_blocks, user_turn
 from app.models import DEPTHS, Concept, Message, Takeaway, Thread
 from app.schemas import Card, TurnRequest
-from app.services import budget, interest, pictures, titles
+from app.services import budget, interest, pictures, titles, translate
 from app.services.concepts import get_or_create, slugify
 from app.services.notes import load_notes
+from app.settings import get_settings
 
 log = logging.getLogger(__name__)
 
 EMIT_INTERVAL = 0.05  # seconds between partial-card events
+TRANSLATION_EMIT_INTERVAL = 0.15  # partial translations re-render the whole card, so less often
 MAX_HIGHLIGHTS = 3
 MAX_DIAGRAM_STEPS = 6
 
@@ -250,14 +253,59 @@ async def _run_turn(turn: PreparedTurn, llm: CardLLM, light_llm: LightLLM | None
         {"card": card_data, "message_id": str(msg.id), "concept_id": str(concept.id), "usage": final.usage},
     )
 
-    if turn.first_turn and light_llm is not None:
-        title, result = await titles.generate_title(light_llm, turn.first_message, card)
-        if result is not None:
-            async with SessionLocal() as session:
+    # After the card: the Chinese translation (streamed, so it fills in field by field) and, on a
+    # thread's first card, the title, running at the same time. Both use the cheap light model; the
+    # card is already usable, so failures here are silent.
+    if light_llm is None:
+        return
+    title_task = (
+        asyncio.create_task(titles.generate_title(light_llm, turn.first_message, card)) if turn.first_turn else None
+    )
+
+    async def finish_title() -> str | None:
+        try:
+            title, result = await title_task
+        except Exception:
+            log.warning("title generation failed", exc_info=True)
+            return None
+        async with SessionLocal() as session:
+            if result is not None:
                 budget.record(session, turn.user_id, "title", result.model, result.usage, thread_id=turn.thread_id)
-                if title:
-                    thread = await session.get(Thread, turn.thread_id)
-                    thread.title = title
+            if title:
+                thread = await session.get(Thread, turn.thread_id)
+                thread.title = title
+            await session.commit()
+        return title
+
+    title_done = title_task is None
+    if get_settings().translate_cards:
+        zh = zh_result = None
+        last_emit = 0.0
+        try:
+            async for item in translate.stream_translation(light_llm, card_data):
+                if isinstance(item, tuple):
+                    zh, zh_result = item
+                elif time.monotonic() - last_emit >= TRANSLATION_EMIT_INTERVAL:
+                    yield sse("translation", {"message_id": str(msg.id), "zh": item, "partial": True})
+                    last_emit = time.monotonic()
+                if not title_done and title_task.done():  # don't hold the title back for the translation
+                    title_done = True
+                    if title := await finish_title():
+                        yield sse("title", {"title": title})
+        except LightLLMError as e:  # billed, but no usable translation
+            async with SessionLocal() as session:
+                budget.record(session, turn.user_id, "translate", e.model, e.usage, thread_id=turn.thread_id)
                 await session.commit()
-        if title:
-            yield sse("title", {"title": title})
+        except Exception:
+            log.warning("card translation failed", exc_info=True)
+        if zh is not None:
+            async with SessionLocal() as session:
+                budget.record(
+                    session, turn.user_id, "translate", zh_result.model, zh_result.usage, thread_id=turn.thread_id
+                )
+                stored = await session.get(Message, msg.id)
+                stored.card = {**stored.card, "zh": zh}
+                await session.commit()
+            yield sse("translation", {"message_id": str(msg.id), "zh": zh, "partial": False})
+    if not title_done and (title := await finish_title()):
+        yield sse("title", {"title": title})

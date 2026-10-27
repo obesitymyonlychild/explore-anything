@@ -98,7 +98,11 @@ async def test_turn_and_title_are_recorded(client, session, llm):
     tid = await new_thread(client)
     await turn(client, tid, action="ask", text="air conditioning")
     rows = (await session.scalars(select(ApiCall).order_by(ApiCall.id))).all()
-    assert [(r.purpose, r.model) for r in rows] == [("turn", "claude-opus-5-5"), ("title", "claude-haiku-5-5")]
+    assert sorted((r.purpose, r.model) for r in rows) == [
+        ("title", "claude-haiku-5-5"),
+        ("translate", "claude-haiku-5-5"),
+        ("turn", "claude-opus-5-5"),
+    ]
     assert str(rows[0].thread_id) == tid
     assert rows[0].cost_usd == Decimal(
         str(round(cost_usd("claude-opus-5-5", {"input_tokens": 100, "output_tokens": 50}), 6))

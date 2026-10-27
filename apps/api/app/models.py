@@ -182,8 +182,8 @@ class Takeaway(Base):
 
 # --- Usage & cost -----------------------------------------------------------
 
-API_PURPOSES = ("turn", "title", "spark", "eval", "judge")
-BUDGETED_PURPOSES = ("turn", "title", "spark")  # evals have their own --max-cost guard
+API_PURPOSES = ("turn", "title", "spark", "translate", "eval", "judge")
+BUDGETED_PURPOSES = ("turn", "title", "spark", "translate")  # evals have their own --max-cost guard
 
 
 class ApiCall(Base):
