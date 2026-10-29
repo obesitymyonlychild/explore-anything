@@ -20,6 +20,11 @@ Human body and health
 Genetics and evolution
 Animal behaviour
 Plants and forests
+Mathematics and probability
+Quantum and particle physics
+Radiation and nuclear physics
+Rivers, lakes and wetlands
+Soil and fungi
 
 # Technology and infrastructure
 Electricity and power grids
@@ -33,6 +38,11 @@ Shipping and ports
 Architecture and buildings
 Construction and civil engineering
 Manufacturing and factories
+Robotics and automation
+AI and machine learning
+Sensors and measurement
+Warehouses and logistics
+Waste and recycling
 
 # Work and institutions
 Medicine and hospitals
@@ -48,6 +58,11 @@ Military and diplomacy
 Schools and education
 Journalism and media
 Science labs and research
+Hiring, careers and recruiting
+Unions and labour
+Offices, meetings and management
+Libraries and archives
+Charities and nonprofits
 
 # Money and markets
 Money, banking and payments
@@ -56,6 +71,11 @@ Insurance and risk
 Startups and big companies
 Advertising and marketing
 Tourism and hotels
+Taxes and public spending
+Housing and real estate
+International trade and tariffs
+Accounting and auditing
+Gambling and lotteries
 
 # Culture and everyday life
 Food and cooking
@@ -71,6 +91,11 @@ Fashion and textiles
 Video games
 Social media and online life
 Psychology and behaviour
+Books and storytelling
+Theatre and dance
+Comedy and humour
+Photography
+Philosophy and ethics
 
 # Places and the past
 Cities and urban life
@@ -79,3 +104,8 @@ Ancient civilisations
 History of technology
 Maps and navigation
 Time and calendars
+Medieval life
+Empires and colonialism
+Migration and borders
+Rural life and villages
+Abandoned and lost places
