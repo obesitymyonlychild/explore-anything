@@ -18,6 +18,10 @@ const els = {
   spend: $("#spend"),
   concepts: $("#concepts"),
   panel: $("#panel"),
+  layout: $(".layout"),
+  menu: $("#menu"),
+  notes: $("#notes"),
+  scrim: $("#scrim"),
   conceptOptions: $("#concept-options"),
 };
 
@@ -39,11 +43,17 @@ async function api(path, opts = {}) {
     ...opts,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
+  if (res.status === 401) signIn();
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
     throw new Error(typeof detail.detail === "string" ? detail.detail : `HTTP ${res.status}`);
   }
   return res.status === 204 ? null : res.json();
+}
+
+// APP_PASSWORD is set and this device has no session (or the password changed).
+function signIn() {
+  location.href = "/login";
 }
 
 // POST a turn and call onEvent(name, data) for each server-sent event.
@@ -54,6 +64,7 @@ async function streamTurn(threadId, body, onEvent, signal) {
     body: JSON.stringify(body),
     signal,
   });
+  if (res.status === 401) signIn();
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
     onEvent("error", { code: "http", message: typeof detail.detail === "string" ? detail.detail : `HTTP ${res.status}` });
@@ -239,7 +250,7 @@ function renderCard(card, { final = false, messageId = null, conceptId = null } 
     el("div", { class: "card-head" },
       el("span", { class: "card-concept" },
         conceptId
-          ? el("a", { href: "#", onclick: (e) => { e.preventDefault(); showConcept(conceptId); } }, ...bi(card.concept, zh.concept))
+          ? el("a", { href: "#", onclick: (e) => { e.preventDefault(); showConcept(conceptId); setSheet(true); } }, ...bi(card.concept, zh.concept))
           : card.concept || ""),
       el("span", { class: "card-tag" }, tag)),
     card.one_liner && el("p", { class: "one-liner" }, ...bi(card.one_liner, zh.one_liner)),
@@ -703,7 +714,7 @@ async function loadConcepts() {
           "data-id": c.id,
           class: c.id === state.panelConceptId ? "active" : "",
           title: c.explored ? "" : "not explored yet",
-          onclick: (e) => { e.preventDefault(); showConcept(c.id); },
+          onclick: (e) => { e.preventDefault(); showConcept(c.id); setDrawer(false); setSheet(true); },
         }, c.explored ? c.name : `${c.name} ·`))),
   );
 }
@@ -884,10 +895,34 @@ document.querySelectorAll("#lang button").forEach((b) =>
     rerenderAllCards();
   }));
 
-els.newThread.addEventListener("click", newThread);
-els.surprise.addEventListener("click", surprise);
+// --- phone: the sidebar becomes a drawer and the concept panel a bottom sheet (CSS ≤700px) ---
+
+function setDrawer(open) {
+  els.layout.classList.toggle("menu-open", open);
+  els.menu.setAttribute("aria-expanded", String(open));
+  els.scrim.hidden = !els.layout.matches(".menu-open, .sheet-open");
+}
+
+function setSheet(open) {
+  els.layout.classList.toggle("sheet-open", open);
+  els.scrim.hidden = !els.layout.matches(".menu-open, .sheet-open");
+}
+
+function closeOverlays() {
+  setDrawer(false);
+  setSheet(false);
+}
+
+els.menu.addEventListener("click", () => setDrawer(!els.layout.classList.contains("menu-open")));
+els.notes.addEventListener("click", () => setSheet(true));
+$("#sheet-close").addEventListener("click", closeOverlays);
+els.scrim.addEventListener("click", closeOverlays);
+document.addEventListener("keydown", (e) => e.key === "Escape" && closeOverlays());
+
+els.newThread.addEventListener("click", () => { setDrawer(false); newThread(); });
+els.surprise.addEventListener("click", () => { setDrawer(false); surprise(); });
 els.stop.addEventListener("click", () => state.abort?.abort());
-window.addEventListener("hashchange", route);
+window.addEventListener("hashchange", () => { closeOverlays(); route(); });
 
 state.lang = loadLang();
 setLangButtons();

@@ -2,7 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1c1917" media="(prefers-color-scheme: dark)">
+  <!-- Home-screen app: opens full screen, with its own name and icon -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Explore">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
   <title>Explore Anything</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -20,7 +30,9 @@
 
     <main class="main">
       <header class="thread-header">
+        <button type="button" id="menu" class="phone-only icon-button" aria-label="Threads and concepts" aria-expanded="false">☰</button>
         <h1 id="thread-title">New exploration</h1>
+        <button type="button" id="notes" class="phone-only">Notes</button>
         <div id="lang" class="lang" role="group" aria-label="Card language">
           <button type="button" data-lang="en">EN</button>
           <button type="button" data-lang="zh" lang="zh-Hans">中文</button>
@@ -52,9 +64,16 @@
       </form>
     </main>
 
-    <aside id="panel" class="panel" aria-label="Concept">
-      <p class="muted">Your links and takeaways for the current concept show up here.</p>
+    <aside class="panel" aria-label="Concept">
+      <div class="sheet-bar phone-only">
+        <span class="muted">Notes</span>
+        <button type="button" id="sheet-close" class="icon-button" aria-label="Close notes">✕</button>
+      </div>
+      <div id="panel">
+        <p class="muted">Your links and takeaways for the current concept show up here.</p>
+      </div>
     </aside>
+    <div id="scrim" class="scrim" hidden></div>
   </div>
   <datalist id="concept-options"></datalist>
   <script src="/static/app.js"></script>

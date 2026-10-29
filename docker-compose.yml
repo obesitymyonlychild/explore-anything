@@ -6,7 +6,8 @@ services:
       POSTGRES_PASSWORD: explore
       POSTGRES_DB: explore
     ports:
-      - "5433:5432" # 5433 on the host to avoid clashing with a local Postgres
+      # 5433 on the host to avoid clashing with a local Postgres; this Mac only, never the network
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/db/init:/docker-entrypoint-initdb.d:ro

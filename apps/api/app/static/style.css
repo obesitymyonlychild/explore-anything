@@ -29,6 +29,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* classes that set display (.error, .phone-only) mustn't un-hide */
 
 body {
   margin: 0;
@@ -51,6 +52,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 
 .muted { color: var(--muted); }
+.phone-only, .scrim { display: none; }
+.icon-button { font-size: 18px; line-height: 1; padding: 4px 10px; }
 
 /* --- layout --- */
 .layout { display: flex; height: 100vh; }
@@ -307,8 +310,43 @@ form.stack .actions { display: flex; gap: 6px; justify-content: flex-end; align-
   .bar-label { grid-column: 1 / -1; margin-bottom: -4px; }
   .causes { grid-template-columns: 1fr; }
   .converge { transform: rotate(90deg); justify-self: center; }
-  .layout { flex-direction: column; flex-wrap: nowrap; }
-  .sidebar { width: auto; border-right: none; border-bottom: 1px solid var(--border); max-height: 30vh; }
-  .main { height: 75vh; flex-basis: auto; }
-  .messages { padding: 12px 16px; }
+
+  /* One full-height column: the sidebar slides in from the left (☰), the concept panel up from the bottom (Notes). */
+  .phone-only { display: inline-flex; }
+  .layout { display: block; height: 100dvh; min-height: 0; }
+  .main { height: 100dvh; }
+  .sidebar {
+    position: fixed; inset: 0 auto 0 0; z-index: 30;
+    width: min(82vw, 320px); max-height: none;
+    background: var(--bg); border-right: 1px solid var(--border); border-bottom: none;
+    padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
+    transform: translateX(-105%); transition: transform 0.2s ease;
+  }
+  .layout.menu-open .sidebar { transform: none; }
+  .panel {
+    position: fixed; inset: auto 0 0 0; z-index: 30;
+    width: auto; max-height: 82dvh;
+    background: var(--bg); border-top: 1px solid var(--border); border-radius: 14px 14px 0 0;
+    padding: 4px 16px calc(16px + env(safe-area-inset-bottom));
+    transform: translateY(105%); transition: transform 0.2s ease;
+  }
+  .layout.sheet-open .panel { transform: none; }
+  .sheet-bar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--bg); padding: 6px 0; }
+  .scrim:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 20; background: rgb(0 0 0 / 0.35); }
+
+  /* Header: ☰, title, Notes on the first row; language and depth on the second. */
+  .thread-header { flex-wrap: wrap; gap: 4px 8px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; }
+  .thread-header h1 { flex: 1 1 0; min-width: 0; }
+  .thread-header::after { content: ""; order: 1; flex-basis: 100%; } /* line break before the second row */
+  .lang { order: 2; }
+  .depth { order: 2; margin-left: auto; }
+  .messages { padding: 12px; }
+  .composer { padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
+
+  /* Bigger touch targets; 16px text in fields so iOS doesn't zoom in on focus. */
+  button { min-height: 36px; }
+  .lang button { min-height: 32px; padding: 2px 12px; }
+  .link-button { min-height: 32px; }
+  .thread-list a { padding: 8px 6px; }
+  textarea, input, select { font-size: 16px; }
 }

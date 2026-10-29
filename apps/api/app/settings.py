@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     daily_budget_usd: float = 2.0
     monthly_budget_usd: float = 20.0
 
+    # Required to sign in when set; leave empty on localhost. Set it before `make lan`.
+    app_password: str = ""
+
     prompts_dir: Path = REPO_ROOT / "prompts"
     profile_path: Path = REPO_ROOT / "config" / "profile.md"
 

@@ -23,6 +23,22 @@ API docs: http://localhost:8000/docs
 | `make psql` | Open psql on the dev database |
 | `make db-reset` | Delete the DB volume (all local data) |
 
+## Use it on your phone or another computer
+
+On your home Wi-Fi, with this Mac on and awake:
+
+1. Set `APP_PASSWORD` in `.env`. `make lan` refuses to start without it, since anyone on the Wi-Fi could
+   otherwise open the app and spend your API credit.
+2. Run `make lan` (instead of `make dev`). It prints the address to open, e.g. `http://my-mac.local:8000`.
+   The first time, macOS may ask whether Python can accept incoming connections: allow it.
+3. Open that address on the phone and sign in once (the session lasts a year; changing the password
+   signs every device out).
+4. Install it: on iPhone, Share → **Add to Home Screen** (opens full screen, like an app). On Android,
+   Chrome menu → **Add to Home screen** (over plain http it opens as a Chrome tab rather than full screen).
+
+On a phone the thread list is behind ☰ and the concept's links and takeaways behind **Notes**.
+The database only listens on this Mac, never the network.
+
 ## API costs and limits
 
 Every Anthropic API call is recorded with its cost in the `api_call` table. The sidebar shows today's
