@@ -2,6 +2,7 @@
 // Plain JS on purpose (see docs/P0_SPEC.md §3); the real frontend comes in P1.
 
 const $ = (sel) => document.querySelector(sel);
+const NEW_TITLE = "全场八折"; // header of a thread with no card yet; same text as index.html
 const els = {
   threads: $("#threads"),
   title: $("#thread-title"),
@@ -535,7 +536,7 @@ function newThread() {
   state.threadId = null;
   state.sparkMessageId = null;
   history.replaceState(null, "", "#");
-  els.title.textContent = "New exploration";
+  els.title.textContent = NEW_TITLE;
   els.depth.value = "explain";
   cards.clear();
   els.messages.replaceChildren(els.empty);
@@ -686,7 +687,7 @@ async function sendTurn(body) {
         replace(renderCard(data.card, { final: true, messageId: data.message_id, conceptId: data.concept_id }));
         setStreaming(false); // a title may still follow; the card is usable now
         if (state.abort === abort) state.abort = null; // Stop no longer applies to this turn
-        if (els.title.textContent === "New exploration") els.title.textContent = data.card.concept;
+        if (els.title.textContent === NEW_TITLE) els.title.textContent = data.card.concept;
         showConcept(data.concept_id);
         loadConcepts();
         loadThreads();
