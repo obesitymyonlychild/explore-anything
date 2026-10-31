@@ -13,6 +13,7 @@ const els = {
   send: $("#send"),
   newThread: $("#new-thread"),
   surprise: $("#surprise"),
+  emptySurprise: $("#empty-surprise"),
   stop: $("#stop"),
   banner: $("#banner"),
   spend: $("#spend"),
@@ -470,6 +471,7 @@ function setStreaming(on) {
   els.send.hidden = on;
   els.stop.hidden = !on;
   els.surprise.disabled = on;
+  els.emptySurprise.disabled = on;
   els.depth.disabled = on;
   document.querySelectorAll("button.branch, button.ask").forEach((b) => (b.disabled = on));
 }
@@ -866,6 +868,8 @@ els.composer.addEventListener("submit", (e) => {
   // A depth picked before the first message has no thread to PATCH yet, so send it with the turn.
   sendTurn(state.threadId ? { action: "ask", text } : { action: "ask", text, depth: els.depth.value });
 });
+
+els.emptySurprise.addEventListener("click", () => surprise());
 
 els.input.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {

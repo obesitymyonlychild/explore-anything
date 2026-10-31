@@ -3,24 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1c1917" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#141416">
   <!-- Home-screen app: opens full screen, with its own name and icon -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Explore">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
   <title>Explore Anything</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=JetBrains+Mono:wght@400;500;600&family=Silkscreen&display=swap">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <div class="layout">
     <aside class="sidebar">
-      <button id="new-thread" class="primary">+ New</button>
-      <button id="surprise">🎲 Surprise me</button>
+      <a class="brand" href="/"><img src="/static/icons/icon.svg" alt=""><span>Explore<br>Anything</span></a>
+      <button id="surprise" class="primary wool">surprise_me()</button>
+      <button id="new-thread">new</button>
       <h2>Threads</h2>
       <ul id="threads" class="thread-list"></ul>
       <h2>Concepts</h2>
@@ -32,7 +35,7 @@
       <header class="thread-header">
         <button type="button" id="menu" class="phone-only icon-button" aria-label="Threads and concepts" aria-expanded="false">☰</button>
         <h1 id="thread-title">New exploration</h1>
-        <button type="button" id="notes" class="phone-only">Notes</button>
+        <button type="button" id="notes" class="phone-only">notes</button>
         <div id="lang" class="lang" role="group" aria-label="Card language">
           <button type="button" data-lang="en">EN</button>
           <button type="button" data-lang="zh" lang="zh-Hans">中文</button>
@@ -52,15 +55,17 @@
 
       <section id="messages" class="messages" aria-live="polite">
         <div id="empty" class="empty">
-          <p>Type a concept or a question to start exploring.</p>
-          <p class="muted">e.g. "how does air conditioning work?", "tides", "why do bridges sway?"</p>
+          <img class="empty-mark" src="/static/icons/icon.svg" alt="">
+          <h2>What are you curious about?</h2>
+          <p class="muted">Let it pick something for you, or type your own below.</p>
+          <button type="button" id="empty-surprise" class="primary wool">surprise_me()</button>
         </div>
       </section>
 
       <form id="composer" class="composer">
-        <textarea id="input" rows="2" placeholder="Ask anything…" autocomplete="off"></textarea>
-        <button type="submit" id="send" class="primary">Send</button>
-        <button type="button" id="stop" hidden>Stop</button>
+        <textarea id="input" rows="2" placeholder="ask anything_" autocomplete="off"></textarea>
+        <button type="submit" id="send" class="primary">send</button>
+        <button type="button" id="stop" hidden>stop</button>
       </form>
     </main>
 
@@ -75,6 +80,17 @@
     </aside>
     <div id="scrim" class="scrim" hidden></div>
   </div>
+  <!-- .wool: frays the edges of the wool patch into loose fibres with a soft halo, so it blends into the fur -->
+  <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+    <filter id="wool" x="-20%" y="-60%" width="140%" height="220%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="5" result="fibres"/>
+      <feDisplacementMap in="SourceGraphic" in2="fibres" scale="14" xChannelSelector="R" yChannelSelector="G" result="frayed"/>
+      <feGaussianBlur in="frayed" stdDeviation="0.4" result="soft"/>
+      <feGaussianBlur in="frayed" stdDeviation="5" result="glow"/>
+      <feColorMatrix in="glow" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.5 0" result="halo"/>
+      <feMerge><feMergeNode in="halo"/><feMergeNode in="soft"/></feMerge>
+    </filter>
+  </svg>
   <datalist id="concept-options"></datalist>
   <script src="/static/app.js"></script>
 </body>

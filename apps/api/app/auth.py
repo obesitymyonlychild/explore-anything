@@ -19,8 +19,8 @@ from app.settings import get_settings
 COOKIE = "ea_session"
 COOKIE_MAX_AGE = 365 * 24 * 3600
 WRONG_PASSWORD_DELAY = 1.0  # seconds; slows down guessing
-# Reachable without a session: the login page itself, and what a phone fetches to install the app.
-OPEN_PATHS = ("/login", "/manifest.webmanifest", "/static/icons/")
+# Reachable without a session: the login page and its background, and what a phone fetches to install the app.
+OPEN_PATHS = ("/login", "/manifest.webmanifest", "/static/icons/", "/static/fur.jpg")
 LOGIN_PAGE = Path(__file__).parent / "static" / "login.html"
 
 router = APIRouter(include_in_schema=False)

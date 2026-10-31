@@ -20,8 +20,9 @@ async def test_everything_needs_a_session_when_a_password_is_set(client, passwor
     assert (await client.get("/api/threads")).status_code == 401
     page = await client.get("/")
     assert (page.status_code, page.headers["location"]) == (303, "/login")
-    # The login page and what a phone needs to install the app stay reachable.
+    # The login page, its background, and what a phone needs to install the app stay reachable.
     assert (await client.get("/login")).status_code == 200
+    assert (await client.get("/static/fur.jpg")).status_code == 200
     assert (await client.get("/manifest.webmanifest")).status_code == 200
     assert (await client.get("/static/icons/icon.svg")).status_code == 200
 
