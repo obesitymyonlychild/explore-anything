@@ -26,7 +26,7 @@ RECENT_AREAS = 10  # don't repeat a topic area from the last N sparks
 RECENT_ANGLES = 3  # nor an angle from the last N
 KNOWN_CONCEPTS = 300  # most recent concept names passed in, to avoid repeats
 FEEDBACK_WINDOW = 200  # sparks (and skips) considered when weighting areas and angles
-ENGAGED = ("ask", "dive", "branch", "switch", "link", "takeaway")  # events that mean "I wanted this"
+ENGAGED = ("ask", "dive", "branch", "switch", "link", "takeaway", "favourite")  # events that mean "I wanted this"
 SKIP_PENALTY = {"implicit": 1.0, "not_interested": 2.0}
 MIN_FACTOR, MAX_FACTOR = 0.2, 2.0
 

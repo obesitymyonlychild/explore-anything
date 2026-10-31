@@ -58,6 +58,16 @@ async def test_unfavourite(client, session):
     assert (await client.get("/api/messages/favourites")).json() == []
 
 
+async def test_toggling_back_on_records_no_second_event(client, session):
+    _, message_id = await card_in_thread(client, session)
+    for _ in range(3):
+        await client.put(f"/api/messages/{message_id}/favourite")
+        await client.delete(f"/api/messages/{message_id}/favourite")
+    await client.put(f"/api/messages/{message_id}/favourite")
+    events = (await session.scalars(select(InterestEvent).where(InterestEvent.action == "favourite"))).all()
+    assert [e.meta for e in events] == [{"message_id": message_id}]
+
+
 async def test_only_cards_can_be_favourites(client, session):
     thread = (await client.post("/api/threads", json={})).json()
     question = Message(thread_id=uuid.UUID(thread["id"]), seq=1, role="user", content="why tides?")

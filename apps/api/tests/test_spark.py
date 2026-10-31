@@ -160,6 +160,16 @@ async def test_engaging_with_a_spark_is_not_a_skip(client, session, llm, light):
     assert await skips(session) == []
 
 
+async def test_favouriting_a_spark_is_not_a_skip(client, session, llm, light):
+    tid = await spark_thread(client, llm)
+    detail = (await client.get(f"/api/threads/{tid}")).json()
+    card_id = next(m["id"] for m in detail["messages"] if m["role"] == "assistant")
+    assert (await client.put(f"/api/messages/{card_id}/favourite")).status_code == 204
+    light.replies.append(dict(PICK))
+    await client.post("/api/spark")
+    assert await skips(session) == []
+
+
 async def test_not_interested_marks_the_spark(client, session, llm, light):
     tid = await spark_thread(client, llm)
     res = await client.post(f"/api/threads/{tid}/not-interested")

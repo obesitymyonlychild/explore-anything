@@ -3,7 +3,8 @@
   color-scheme: dark;
   --veil: rgb(10 10 12 / 0.35);              /* tones the fur down behind everything */
   --glass: rgb(20 20 22 / 0.62);             /* panels: the fur shows through, blurred */
-  --glass-strong: rgb(16 16 18 / 0.80);      /* cards and drawers: text has to stay readable */
+  --glass-strong: rgb(16 16 18 / 0.80);      /* drawers: text has to stay readable */
+  --card: rgb(18 18 20 / 0.88);              /* cards: no blur behind them, so a little more solid */
   --inset: rgb(255 255 255 / 0.04);          /* boxes inside a card: diagram steps, inputs */
   --line: rgb(255 255 255 / 0.10);
   --fg: #f3efe9;
@@ -159,7 +160,6 @@ button.primary::before { content: "> "; opacity: 0.55; }
 .card .one-liner .zh { margin-top: 4px; }
 .body-zh { border-left: 2px solid var(--line); padding-left: 10px; margin-top: 8px; }
 .card-head .zh { display: inline; margin-left: 8px; font-family: var(--font-body); font-size: 1em; text-transform: none; letter-spacing: 0; }
-.card-actions { display: flex; gap: 14px; }
 
 .messages { flex: 1; overflow-y: auto; padding: 0 2px; }
 .messages > * { max-width: 760px; margin-left: auto; margin-right: auto; }
@@ -217,8 +217,11 @@ button.wool:hover:not(:disabled)::after { opacity: 1; filter: url(#wool) brightn
   white-space: pre-wrap;
 }
 
+/* Cards skip the blur: a long thread of blurred layers stutters when scrolling on phones. Nearly opaque instead. */
 .card {
-  background: var(--glass-strong);
+  background: var(--card);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   padding: 18px 20px;
   margin-bottom: 16px;
 }
@@ -330,7 +333,7 @@ button.wool:hover:not(:disabled)::after { opacity: 1; filter: url(#wool) brightn
 }
 
 /* card actions drawn as meme pictures */
-.card-actions { align-items: flex-end; flex-wrap: wrap; }
+.card-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; margin-top: 14px; }
 button.meme {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 0; border: none; background: none; color: var(--muted);
@@ -345,6 +348,7 @@ button.meme:hover:not(:disabled) { color: var(--fg); }
 button.meme:hover:not(:disabled) img { transform: translateY(-2px) rotate(-4deg); border-color: var(--accent); }
 button.meme.favourite[aria-pressed="true"] { color: var(--accent); }
 button.meme.favourite[aria-pressed="true"] img { border: 2px solid var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 4px 12px rgb(0 0 0 / 0.35); }
+button.meme.favourite.failed { color: var(--error-fg); }  /* beats the pressed colour */
 
 /* the card a favourite link jumps to */
 .card.flash { animation: flash 1.6s ease-out; }
@@ -352,7 +356,6 @@ button.meme.favourite[aria-pressed="true"] img { border: 2px solid var(--accent)
 
 .card-concept a { color: inherit; text-decoration: none; }
 .card-concept a:hover { text-decoration: underline; }
-.card-actions { margin-top: 14px; }
 .link-button { border: none; background: none; padding: 0; color: var(--muted); font-size: 12px; }
 .link-button:hover:not(:disabled) { color: var(--accent); }
 

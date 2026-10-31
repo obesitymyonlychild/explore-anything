@@ -10,7 +10,7 @@ from app.db import get_session
 from app.deps import current_user_id
 from app.llm import errors
 from app.llm.light import LightLLM, LightLLMError, get_light_llm
-from app.models import Message, Thread
+from app.models import InterestEvent, Message, Thread
 from app.schemas import FavouriteOut
 from app.services import budget, interest, translate
 
@@ -38,23 +38,21 @@ async def list_favourites(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(current_user_id),
 ):
+    # Only the columns the list shows: whole rows would drag in card and api_content JSONB.
     rows = await session.execute(
-        select(Message, Thread.title)
+        select(
+            Message.id.label("message_id"),
+            Message.thread_id,
+            Thread.title.label("thread_title"),
+            Message.card["concept"].astext.label("concept"),
+            Message.card["one_liner"].astext.label("one_liner"),
+            Message.favourited_at,
+        )
         .join(Thread, Thread.id == Message.thread_id)
         .where(Thread.user_id == user_id, Message.favourited_at.is_not(None))
         .order_by(Message.favourited_at.desc())
     )
-    return [
-        FavouriteOut(
-            message_id=m.id,
-            thread_id=m.thread_id,
-            thread_title=title,
-            concept=(m.card or {}).get("concept"),
-            one_liner=(m.card or {}).get("one_liner"),
-            favourited_at=m.favourited_at,
-        )
-        for m, title in rows.all()
-    ]
+    return [FavouriteOut(**row._mapping) for row in rows]
 
 
 @router.put("/{message_id}/favourite", status_code=204)
@@ -66,7 +64,19 @@ async def add_favourite(
     msg = await owned_card(session, message_id, user_id)
     if msg.favourited_at is None:  # idempotent: keeps its place in the list
         msg.favourited_at = func.now()
-        interest.record(session, user_id, "favourite", thread_id=msg.thread_id, concept_id=msg.concept_id)
+        # One interest event per card, however often it's toggled off and on again.
+        already = await session.scalar(
+            select(InterestEvent.id).where(
+                InterestEvent.user_id == user_id,
+                InterestEvent.action == "favourite",
+                InterestEvent.meta["message_id"].astext == str(msg.id),
+            )
+        )
+        if already is None:
+            interest.record(
+                session, user_id, "favourite",
+                thread_id=msg.thread_id, concept_id=msg.concept_id, meta={"message_id": str(msg.id)},
+            )
     await session.commit()
     return Response(status_code=204)
 

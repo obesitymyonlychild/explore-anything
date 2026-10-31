@@ -553,21 +553,38 @@ async function loadFavourites() {
     ...(favs.length
       ? favs.map((f) =>
           el("li", {},
-            el("a", { href: `#/t/${f.thread_id}/m/${f.message_id}`, title: f.one_liner || "" }, f.concept || f.thread_title || "Untitled")))
+            el("a", {
+              href: `#/t/${f.thread_id}/m/${f.message_id}`,
+              title: f.one_liner || "",
+              // Already on this link: no hashchange will fire, so go back to the card here.
+              onclick: (e) => {
+                if (e.currentTarget.getAttribute("href") !== location.hash) return;
+                e.preventDefault();
+                closeOverlays();
+                showCard(f.message_id);
+              },
+            }, f.concept || f.thread_title || "Untitled")))
       : [el("li", { class: "muted empty-note" }, "Tap the coffee cat on a card to keep it here.")]),
   );
 }
 
 async function toggleFavourite(messageId, button) {
   const on = button.getAttribute("aria-pressed") !== "true";
+  const label = button.querySelector(".meme-label");
   button.disabled = true;
   try {
     await api(`/messages/${messageId}/favourite`, { method: on ? "PUT" : "DELETE" });
     button.setAttribute("aria-pressed", String(on));
+    button.classList.remove("failed");
+    label.textContent = "favourite";
+    button.title = "favourite";
     const entry = cards.get(messageId);
     if (entry) entry.favourited = on;
     loadFavourites();
   } catch (e) {
+    // Shown on the button itself: a tooltip never appears on a phone.
+    button.classList.add("failed");
+    label.textContent = "failed · retry";
     button.title = `Couldn't save (${e.message})`;
   } finally {
     button.disabled = false;
