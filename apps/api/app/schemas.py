@@ -45,7 +45,19 @@ class MessageOut(ORM):
     content: str
     card: dict[str, Any] | None
     concept_id: uuid.UUID | None
+    favourited_at: datetime | None
     created_at: datetime
+
+
+class FavouriteOut(BaseModel):
+    """A favourite card, with enough to list it and jump back to it."""
+
+    message_id: uuid.UUID
+    thread_id: uuid.UUID
+    thread_title: str | None
+    concept: str | None
+    one_liner: str | None
+    favourited_at: datetime
 
 
 class ThreadDetail(ThreadOut):

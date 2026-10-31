@@ -123,6 +123,21 @@ button.primary::before { content: "> "; opacity: 0.55; }
 .thread-list a:hover { background: var(--accent-soft); }
 .thread-list a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
+/* favourites: a folded section under the buttons */
+.favourites-box { margin-top: 14px; border: 1px solid var(--line); border-radius: var(--r-control); background: var(--inset); }
+.favourites-box summary {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; list-style: none;
+  font-family: var(--font-pixel); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+}
+.favourites-box summary::-webkit-details-marker { display: none; }
+.favourites-box summary::after { content: "+"; margin-left: auto; }
+.favourites-box[open] summary::after { content: "-"; }
+.favourites-box summary:hover { color: var(--fg); }
+.favourites-box summary img { width: 22px; height: 22px; border-radius: 6px; object-fit: cover; }
+.favourites-box .count { color: var(--accent); }
+.favourites-box .thread-list { padding: 0 4px 6px; max-height: 40vh; overflow-y: auto; }
+.empty-note { padding: 4px 10px; font-size: 12px; }
+
 .main { flex: 1; display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
 
 .thread-header {
@@ -314,9 +329,30 @@ button.wool:hover:not(:disabled)::after { opacity: 1; filter: url(#wool) brightn
   align-items: center;
 }
 
+/* card actions drawn as meme pictures */
+.card-actions { align-items: flex-end; flex-wrap: wrap; }
+button.meme {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 0; border: none; background: none; color: var(--muted);
+}
+button.meme img {
+  display: block; width: 46px; height: 46px; object-fit: cover;
+  border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 4px 12px rgb(0 0 0 / 0.35);
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.meme-label { font-family: var(--font-pixel); font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; }
+button.meme:hover:not(:disabled) { color: var(--fg); }
+button.meme:hover:not(:disabled) img { transform: translateY(-2px) rotate(-4deg); border-color: var(--accent); }
+button.meme.favourite[aria-pressed="true"] { color: var(--accent); }
+button.meme.favourite[aria-pressed="true"] img { border: 2px solid var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 4px 12px rgb(0 0 0 / 0.35); }
+
+/* the card a favourite link jumps to */
+.card.flash { animation: flash 1.6s ease-out; }
+@keyframes flash { 0%, 30% { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); } }
+
 .card-concept a { color: inherit; text-decoration: none; }
 .card-concept a:hover { text-decoration: underline; }
-.card-actions { margin-top: 10px; }
+.card-actions { margin-top: 14px; }
 .link-button { border: none; background: none; padding: 0; color: var(--muted); font-size: 12px; }
 .link-button:hover:not(:disabled) { color: var(--accent); }
 

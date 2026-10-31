@@ -18,6 +18,8 @@ const els = {
   banner: $("#banner"),
   spend: $("#spend"),
   concepts: $("#concepts"),
+  favourites: $("#favourites"),
+  favouritesCount: $("#favourites-count"),
   panel: $("#panel"),
   layout: $(".layout"),
   menu: $("#menu"),
@@ -217,7 +219,7 @@ const cards = new Map(); // messageId -> { card, conceptId }
 function rerenderCard(messageId) {
   const entry = cards.get(messageId);
   const node = document.querySelector(`article.card[data-message-id="${messageId}"]`);
-  if (entry && node) node.replaceWith(renderCard(entry.card, { final: true, messageId, conceptId: entry.conceptId }));
+  if (entry && node) node.replaceWith(renderCard(entry.card, { final: true, messageId, conceptId: entry.conceptId, favourited: entry.favourited }));
 }
 
 function rerenderAllCards() {
@@ -238,9 +240,9 @@ async function translateCard(messageId, button) {
 }
 
 // Renders a (possibly partial) card. Fields that haven't streamed in yet are skipped.
-// Final cards carry their message and concept ids, which enable the concept link and "+ takeaway".
-function renderCard(card, { final = false, messageId = null, conceptId = null } = {}) {
-  if (final && messageId) cards.set(messageId, { card, conceptId });
+// Final cards carry their message and concept ids, which enable the concept link and the action buttons.
+function renderCard(card, { final = false, messageId = null, conceptId = null, favourited = false } = {}) {
+  if (final && messageId) cards.set(messageId, { card, conceptId, favourited });
   const zh = card.zh || {};
   const tag = [card.kind, card.depth].filter(Boolean).join(" · ");
   const highlights = (card.highlights || []).map((h, i) => [h, (zh.highlights || [])[i]]).filter(([h]) => h);
@@ -273,22 +275,31 @@ function renderCard(card, { final = false, messageId = null, conceptId = null } 
             onclick: () => sendTurn(BRANCH_TURN[b.kind](b)),
           }, b.kind === "related" ? `→ ${text}` : text);
         })),
-    final && conceptId &&
+    final && messageId &&
       el("div", { class: "card-actions" },
-        el("button", {
-          type: "button",
-          class: "link-button",
-          onclick: (e) => {
-            e.target.parentElement.remove();
-            article.append(takeawayForm({ conceptId, messageId, onDone: () => showConcept(conceptId) }));
-          },
-        }, "+ takeaway"),
-        needsTranslation &&
-          el("button", { type: "button", class: "link-button translate", onclick: (e) => translateCard(messageId, e.target) }, "翻译成中文"),
+        memeButton("favourite-cat.jpg", "favourite", (e) => toggleFavourite(messageId, e.currentTarget), {
+          class: "favourite",
+          "aria-pressed": favourited ? "true" : "false",
+        }),
+        conceptId &&
+          memeButton("takeaway-kitten.jpg", "takeaway", (e) => {
+            const button = e.currentTarget;
+            button.hidden = true;
+            article.append(takeawayForm({ conceptId, messageId, onDone: () => { button.hidden = false; showConcept(conceptId); } }));
+          }),
         messageId === state.sparkMessageId &&
-          el("button", { type: "button", class: "link-button not-interested", onclick: (e) => notInterested(e.target) }, "Not interested → another")),
+          memeButton("nope-fish.jpg", "not interested", (e) => notInterested(e.currentTarget), { class: "not-interested" }),
+        needsTranslation &&
+          el("button", { type: "button", class: "link-button translate", onclick: (e) => translateCard(messageId, e.target) }, "翻译成中文")),
   );
   return article;
+}
+
+// A card action drawn as a meme picture with a small label under it.
+function memeButton(picture, label, onclick, { class: extra = "", ...attrs } = {}) {
+  return el("button", { type: "button", class: `meme ${extra}`.trim(), title: label, onclick, ...attrs },
+    el("img", { src: `/static/memes/${picture}`, alt: "" }),
+    el("span", { class: "meme-label" }, label));
 }
 
 function renderBody(md, zhMd) {
@@ -458,7 +469,7 @@ function renderImages(images, zhCaptions = []) {
 function renderMessage(msg) {
   if (msg.role === "user") return el("div", { class: "user-msg" }, msg.content);
   return msg.card
-    ? renderCard(msg.card, { final: true, messageId: msg.id, conceptId: msg.concept_id })
+    ? renderCard(msg.card, { final: true, messageId: msg.id, conceptId: msg.concept_id, favourited: !!msg.favourited_at })
     : el("div", { class: "user-msg" }, msg.content);
 }
 
@@ -518,10 +529,49 @@ function newThread() {
   els.input.focus();
 }
 
+// #/t/<thread>, or #/t/<thread>/m/<card> to open a thread at one card (from Favourites).
 function route() {
-  const m = location.hash.match(/^#\/t\/([0-9a-f-]{36})$/);
-  if (m) openThread(m[1]).catch(() => newThread());
+  const m = location.hash.match(/^#\/t\/([0-9a-f-]{36})(?:\/m\/([0-9a-f-]{36}))?$/);
+  if (m) openThread(m[1]).then(() => m[2] && showCard(m[2])).catch(() => newThread());
   else newThread();
+}
+
+function showCard(messageId) {
+  const node = document.querySelector(`article.card[data-message-id="${messageId}"]`);
+  if (!node) return;
+  node.scrollIntoView({ block: "start" });
+  node.classList.add("flash");
+  setTimeout(() => node.classList.remove("flash"), 1600);
+}
+
+// --- favourites --------------------------------------------------------------
+
+async function loadFavourites() {
+  const favs = await api("/messages/favourites");
+  els.favouritesCount.textContent = favs.length ? String(favs.length) : "";
+  els.favourites.replaceChildren(
+    ...(favs.length
+      ? favs.map((f) =>
+          el("li", {},
+            el("a", { href: `#/t/${f.thread_id}/m/${f.message_id}`, title: f.one_liner || "" }, f.concept || f.thread_title || "Untitled")))
+      : [el("li", { class: "muted empty-note" }, "Tap the coffee cat on a card to keep it here.")]),
+  );
+}
+
+async function toggleFavourite(messageId, button) {
+  const on = button.getAttribute("aria-pressed") !== "true";
+  button.disabled = true;
+  try {
+    await api(`/messages/${messageId}/favourite`, { method: on ? "PUT" : "DELETE" });
+    button.setAttribute("aria-pressed", String(on));
+    const entry = cards.get(messageId);
+    if (entry) entry.favourited = on;
+    loadFavourites();
+  } catch (e) {
+    button.title = `Couldn't save (${e.message})`;
+  } finally {
+    button.disabled = false;
+  }
 }
 
 // --- turns -----------------------------------------------------------------
@@ -647,7 +697,8 @@ async function notInterested(button) {
     await api(`/threads/${state.threadId}/not-interested`, { method: "POST" });
   } catch (e) {
     button.disabled = false;
-    button.textContent = `Couldn't save (${e.message}). Retry`;
+    button.querySelector(".meme-label").textContent = "retry";
+    button.title = `Couldn't save (${e.message}). Retry`;
     return;
   }
   surprise();
@@ -932,4 +983,5 @@ state.lang = loadLang();
 setLangButtons();
 checkHealth();
 loadConcepts();
+loadFavourites();
 route();

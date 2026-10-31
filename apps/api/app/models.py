@@ -82,6 +82,7 @@ class Message(Base):
         UniqueConstraint("thread_id", "seq"),
         CheckConstraint("role in ('user', 'assistant')", name="message_role_check"),
         Index("ix_message_concept_id", "concept_id"),
+        Index("ix_message_favourited_at", "favourited_at", postgresql_where=text("favourited_at IS NOT NULL")),
     )
 
     id: Mapped[uuid.UUID] = uuid_pk()
@@ -101,6 +102,7 @@ class Message(Base):
     )
     model: Mapped[str | None] = mapped_column(Text)
     usage: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    favourited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # set when the card is a favourite
     created_at: Mapped[datetime] = created_at()
 
     thread: Mapped[Thread] = relationship(back_populates="messages")
@@ -226,7 +228,7 @@ class InterestEvent(Base):
     concept_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("concept.id", ondelete="SET NULL")
     )
-    # spark_shown|ask|dive|branch|switch|skip|depth_set|link|takeaway
+    # spark_shown|ask|dive|branch|switch|skip|depth_set|link|takeaway|favourite
     action: Mapped[str] = mapped_column(Text, nullable=False)
     meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
