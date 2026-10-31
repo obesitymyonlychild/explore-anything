@@ -20,6 +20,7 @@ const els = {
   concepts: $("#concepts"),
   favourites: $("#favourites"),
   favouritesCount: $("#favourites-count"),
+  nopeDialog: $("#nope-dialog"),
   panel: $("#panel"),
   layout: $(".layout"),
   menu: $("#menu"),
@@ -277,8 +278,9 @@ function renderCard(card, { final = false, messageId = null, conceptId = null, f
         })),
     final && messageId &&
       el("div", { class: "card-actions" },
-        memeButton("favourite-cat.jpg", "favourite", (e) => toggleFavourite(messageId, e.currentTarget), {
+        memeButton("favourite-cat.jpg", pixelHeart(favourited), (e) => toggleFavourite(messageId, e.currentTarget), {
           class: "favourite",
+          title: favourited ? "remove from favourites" : "favourite",
           "aria-pressed": favourited ? "true" : "false",
         }),
         conceptId &&
@@ -295,11 +297,24 @@ function renderCard(card, { final = false, messageId = null, conceptId = null, f
   return article;
 }
 
-// A card action drawn as a meme picture with a small label under it.
+// A card action drawn as a meme picture with a small label (text or an icon) under it.
 function memeButton(picture, label, onclick, { class: extra = "", ...attrs } = {}) {
-  return el("button", { type: "button", class: `meme ${extra}`.trim(), title: label, onclick, ...attrs },
+  return el("button", { type: "button", class: `meme ${extra}`.trim(), title: typeof label === "string" ? label : null, onclick, ...attrs },
     el("img", { src: `/static/memes/${picture}`, alt: "" }),
     el("span", { class: "meme-label" }, label));
+}
+
+// A 7x6 pixel heart, filled or outlined, in the current text colour.
+const HEART = {
+  filled: [".XX.XX.", "XXXXXXX", "XXXXXXX", ".XXXXX.", "..XXX..", "...X..."],
+  outline: [".XX.XX.", "X..X..X", "X.....X", ".X...X.", "..X.X..", "...X..."],
+};
+function pixelHeart(filled) {
+  const rows = HEART[filled ? "filled" : "outline"];
+  const rects = rows.flatMap((row, y) => [...row].map((c, x) => (c === "X" ? `<rect x="${x}" y="${y}" width="1" height="1"/>` : "")));
+  const t = document.createElement("template");
+  t.innerHTML = `<svg class="pixel-heart" viewBox="0 0 7 6" width="14" height="12" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true">${rects.join("")}</svg>`;
+  return t.content.firstChild;
 }
 
 function renderBody(md, zhMd) {
@@ -552,7 +567,7 @@ async function loadFavourites() {
   els.favourites.replaceChildren(
     ...(favs.length
       ? favs.map((f) =>
-          el("li", {},
+          el("li", { class: "fav-row" },
             el("a", {
               href: `#/t/${f.thread_id}/m/${f.message_id}`,
               title: f.one_liner || "",
@@ -563,9 +578,40 @@ async function loadFavourites() {
                 closeOverlays();
                 showCard(f.message_id);
               },
-            }, f.concept || f.thread_title || "Untitled")))
+            }, f.concept || f.thread_title || "Untitled"),
+            el("button", {
+              type: "button",
+              class: "unfavourite",
+              title: "remove from favourites",
+              "aria-label": `Remove ${f.concept || "this card"} from favourites`,
+              onclick: (e) => removeFavourite(f.message_id, e.currentTarget),
+            }, pixelHeart(true))))
       : [el("li", { class: "muted empty-note" }, "Tap the coffee cat on a card to keep it here.")]),
   );
+}
+
+async function removeFavourite(messageId, button) {
+  button.disabled = true;
+  try {
+    await api(`/messages/${messageId}/favourite`, { method: "DELETE" });
+    showFavourite(messageId, false);
+    loadFavourites();
+  } catch (e) {
+    button.disabled = false;
+    button.title = `Couldn't remove (${e.message})`;
+  }
+}
+
+// Draws a card's favourite button as on or off (if the card is on screen) and remembers it for re-renders.
+function showFavourite(messageId, on) {
+  const entry = cards.get(messageId);
+  if (entry) entry.favourited = on;
+  const button = document.querySelector(`article.card[data-message-id="${messageId}"] .meme.favourite`);
+  if (!button) return;
+  button.setAttribute("aria-pressed", String(on));
+  button.classList.remove("failed");
+  button.title = on ? "remove from favourites" : "favourite";
+  button.querySelector(".meme-label").replaceChildren(pixelHeart(on));
 }
 
 async function toggleFavourite(messageId, button) {
@@ -574,12 +620,7 @@ async function toggleFavourite(messageId, button) {
   button.disabled = true;
   try {
     await api(`/messages/${messageId}/favourite`, { method: on ? "PUT" : "DELETE" });
-    button.setAttribute("aria-pressed", String(on));
-    button.classList.remove("failed");
-    label.textContent = "favourite";
-    button.title = "favourite";
-    const entry = cards.get(messageId);
-    if (entry) entry.favourited = on;
+    showFavourite(messageId, on);
     loadFavourites();
   } catch (e) {
     // Shown on the button itself: a tooltip never appears on a phone.
@@ -707,8 +748,12 @@ async function surprise() {
 }
 
 // Tells Surprise me to show this kind of pick less, then picks another.
+// Tells Surprise me to show this kind of pick less, then asks: a new pick, or stay on this card?
+// Closing the window without choosing (Esc, or a click outside) records nothing.
 async function notInterested(button) {
   if (state.streaming) return;
+  const choice = await askNewOrStay();
+  if (!choice) return;
   button.disabled = true;
   try {
     await api(`/threads/${state.threadId}/not-interested`, { method: "POST" });
@@ -718,7 +763,16 @@ async function notInterested(button) {
     button.title = `Couldn't save (${e.message}). Retry`;
     return;
   }
-  surprise();
+  if (choice === "new") return surprise();
+  button.querySelector(".meme-label").textContent = "noted";
+  button.title = "Noted: fewer picks like this";
+}
+
+function askNewOrStay() {
+  const dialog = els.nopeDialog;
+  dialog.returnValue = "";
+  dialog.showModal();
+  return new Promise((resolve) => dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true }));
 }
 
 // One banner for setup problems and budget warnings; refreshed on load and after every turn.
@@ -989,6 +1043,8 @@ els.menu.addEventListener("click", () => setDrawer(!els.layout.classList.contain
 els.notes.addEventListener("click", () => setSheet(true));
 $("#sheet-close").addEventListener("click", closeOverlays);
 els.scrim.addEventListener("click", closeOverlays);
+// A click on the dialog's own box (its backdrop) rather than its contents closes it without a choice.
+els.nopeDialog.addEventListener("click", (e) => e.target === els.nopeDialog && els.nopeDialog.close(""));
 document.addEventListener("keydown", (e) => e.key === "Escape" && closeOverlays());
 
 els.newThread.addEventListener("click", () => { setDrawer(false); newThread(); });

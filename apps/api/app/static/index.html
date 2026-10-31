@@ -84,6 +84,17 @@
     </aside>
     <div id="scrim" class="scrim" hidden></div>
   </div>
+  <dialog id="nope-dialog" class="dialog" aria-labelledby="nope-title">
+    <form method="dialog">
+      <img src="/static/memes/nope-fish.jpg" alt="">
+      <h2 id="nope-title">not interested</h2>
+      <p class="muted">Got it, fewer picks like this. Want a new one?</p>
+      <div class="dialog-actions">
+        <button value="stay">stay</button>
+        <button value="new" class="primary" autofocus>new?</button>
+      </div>
+    </form>
+  </dialog>
   <!-- .wool: frays the edges of the wool patch into loose fibres with a soft halo, so it blends into the fur -->
   <svg width="0" height="0" style="position: absolute" aria-hidden="true">
     <filter id="wool" x="-20%" y="-60%" width="140%" height="220%" color-interpolation-filters="sRGB">
