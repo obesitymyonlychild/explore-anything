@@ -1,7 +1,39 @@
-# explore-anything
+<p align="center">
+  <img src="apps/api/app/static/icons/icon-any-512.png" alt="Explore Anything icon: a pixel-art pig" width="112">
+</p>
+
+<h1 align="center">explore-anything</h1>
+
+<p align="center">
+  <em>Start Foraging? · 吃点啥呢？</em>
+</p>
 
 A chat-first curiosity engine: explore concepts through hook cards, connect them yourself, and keep
 your own takeaways. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/P0_SPEC.md](docs/P0_SPEC.md).
+
+## Demo
+
+![The home page: a pixel pig, "Start Foraging?" and a wool surprise_me() button over snow-leopard fur](docs/images/desktop-home.jpg)
+
+Press **surprise_me()** and it picks something worth exploring, or ask anything. Every answer is a hook
+card, in English, Chinese or both, often with a diagram drawn for it:
+
+![A card about the water cycle, with a cycle diagram, in English and Chinese](docs/images/desktop-card.jpg)
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/phone-home.jpg" alt="The home page on a phone"></td>
+    <td width="50%"><img src="docs/images/phone-card.jpg" alt="A card on a phone"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>On a phone, as a home-screen app</sub></td>
+    <td align="center"><sub>Cards read the same on a small screen</sub></td>
+  </tr>
+</table>
+
+Under each card: the coffee cat saves it to **favourites** (a pixel heart fills in), the wide-eyed kitten
+adds a **takeaway**, and on a surprise pick the sleepy fish says **not interested**, then asks whether you
+want a new one or to stay.
 
 ## Quickstart
 
